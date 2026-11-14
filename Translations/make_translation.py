@@ -115,7 +115,7 @@ def write_start(f: TextIO):
 
 
 # Number of this custom HS-02 build. Shown on the first debug page; bump it for every release.
-CUSTOM_BUILD = 47
+CUSTOM_BUILD = 49
 
 
 def get_constants() -> List[Tuple[str, str]]:
@@ -189,6 +189,10 @@ def get_constants() -> List[Tuple[str, str]]:
         ("SmallCal100Saved", "100C saved at"),
         ("SmallCal100Bad1", "No usable"),
         ("SmallCal100Bad2", "reading"),
+        ("SmallBlocksName1", "Super High"),
+        ("SmallBlocksName2", "Intensity"),
+        ("SmallBlocksName3", "Block"),
+        ("SmallBlocksName4", "Simulator"),
         ("LargeCardWordOff", "Off"),
         ("LargeCardColour0", "Auto"),
         ("LargeCardColour1", "Blue"),

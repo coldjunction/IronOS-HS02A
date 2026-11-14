@@ -63,7 +63,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | `kCal100MinAboveZerouV`, `kCal100MaxuV` | `source/Core/Src/settingsGUI.cpp` | 50, 6000 | not present | Limits in microvolts for the reading that `setCalibrate100()` stores as the 100 °C point: at least 50 above the `CalibrationOffset` setting (below that there is no signal to use) and at most 6000, the most the `Cal100uV` setting holds. Any reading in between is stored. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 47 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 49 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
 
 ## Settings added
 
@@ -592,28 +592,37 @@ Changed. Draws the temperature adjust screen: a sign, the set temperature and th
 
 ## `source/Core/Threads/UI/logic/Hs02Blocks.cpp`
 
-New file, compiled only with `MODEL_HS02` and `HS02_THEME_CARD`. A falling-block game drawn on the mono screen, turned a quarter so that the 160 pixel side of the display is the height of the game. It is a mode of its own, `OperatingMode::Hs02Blocks` (15, added to `OperatingModes.h`); `guiHandleDraw()` in `GUIThread.cpp` calls `hs02BlocksFrame()` once per GUI frame while that mode is active. The mode is entered from the card menu: the menu entry `BlockGame` in `advancedMenu[]` calls `setOpenBlocks()` in `settingsGUI.cpp`, which sets the flag `hs02BlocksRequested`, and `cardHandleButtons()` in `SettingsMenu.cpp` turns the flag into the mode change, as it does for the debug pages.
+New file, compiled only with `MODEL_HS02` and `HS02_THEME_CARD`. The "Super High Intensity Block Simulator": a falling-block game, turned a quarter so that the 160 pixel side of the display is the height of the game. It is a mode of its own, `OperatingMode::Hs02Blocks` (15, added to `OperatingModes.h`); `guiHandleDraw()` in `GUIThread.cpp` calls `hs02BlocksFrame()` once per GUI frame while that mode is active. The mode is entered from the card menu: the menu entry `BlockGame` in `advancedMenu[]` calls `setOpenBlocks()` in `settingsGUI.cpp`, which sets the flag `hs02BlocksRequested`, and `cardHandleButtons()` in `SettingsMenu.cpp` turns the flag into the mode change, as it does for the debug pages. `printShortDescription()` in `SettingsMenu.cpp` prints this entry's name as four rows of the small font (`SmallBlocksName1` to `SmallBlocksName4`) instead of the usual two-row text.
 
-The game state is kept in file-level statics: the field (`field`, one byte per row of 8 columns, 15 rows), the falling piece (`piece`, `pieceX`, `pieceY`), the next shape, the score, a random seed, timers and the previous button states.
+Each of the eight shapes has a colour of its own (`kColours`, true RGB565, entry 0 being the background). That is more than the four colours of a colour-screen picture, so the game does not draw into the frame buffer. It paints rectangles straight onto the panel with `LCD::fillPanelRect()` and repaints only what differs from what the panel shows, which it tracks in `shownCell`, `shownScore`, `shownScoreVisible` and `shownNext`. While the mode is active `guiRenderLoop()` does not call `Display::refresh()`, and on leaving the game calls `LCD::forceNextRefresh()` so the menu's first frame is sent in full.
+
+The other state is in file-level statics: the field (`field`, 15 rows of 8 cells, four bits per cell: 0 is empty, 1 to 8 the colour), the falling piece (`piece`, `pieceColour`, `pieceX`, `pieceY`), the next shape, the score, a random seed, timers, the previous button states and the position in the end-of-game sound (`hornStep`).
+
+Two functions were added elsewhere for it. `LCD::fillPanelRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t rgb565)` (`LCD.cpp`) sets the drawing window and sends the colour, inverted as `refreshColor()` does, in 32-byte chunks; it does nothing if the rectangle does not lie on the panel. `hs02TuneSetTempo(uint8_t percent)` (`Hs02Tune.cpp`) sets the speed of the playing tune, 100 to 250 per cent; `hs02TuneTick()` divides each note's length by it, and `hs02TuneStop()` puts it back to 100. `guiRenderLoop()` lets a tune play in this mode as well as on the home screen.
 
 #### `OperatingMode hs02BlocksFrame(const ButtonState buttons, guiContext *cxt)`
 
-One frame of the game. It ignores `buttons` and reads the three buttons directly with `getButtonA()` (DOWN, right), `getButtonB()` (UP, left) and `getButtonOK()`, because the decoded button states only report a press on release. `cxt->scratch_state.state1` is 0 on the first frames after the mode was entered; the game starts once all buttons are up. UP or DOWN moves the piece one cell at once and repeats after 250 ms, then every 80 ms. OK going down turns the piece a quarter (`turned()`), trying the positions 0, -1, +1 and -2 cells sideways; OK held for 300 ms makes the piece fall one row per frame, until the piece lands. Otherwise the piece falls one row every 600 ms minus 20 ms per point, not faster than every 120 ms. UP and DOWN held together for one second return `OperatingMode::SettingsMenu` and set `hs02MenuWaitForRelease`. After the game has ended, OK starts a new one. Returns `OperatingMode::Hs02Blocks` otherwise.
+One frame of the game. It ignores `buttons` and reads the three buttons directly with `getButtonA()` (DOWN, right), `getButtonB()` (UP, left) and `getButtonOK()`, because the decoded button states only report a press on release. On the first frame after the mode was entered (`cxt->scratch_state.state1` is 0) it paints the empty game with `drawAll()`; the game then starts once all buttons are up. UP or DOWN moves the piece one cell at once and repeats after 250 ms, then every 80 ms. OK going down turns the piece a quarter (`turned()`), trying the positions 0, -1, +1 and -2 cells sideways. The piece falls one row every 600 ms minus 20 ms per point, not faster than every 120 ms. OK held for one second leaves: it stops the sound, calls `LCD::forceNextRefresh()`, sets `hs02MenuWaitForRelease` and returns `OperatingMode::SettingsMenu`. After the game has ended, OK starts a new one. Returns `OperatingMode::Hs02Blocks` otherwise.
 
 #### Helpers (in the anonymous namespace)
 
 | Function | What it does |
 | --- | --- |
+| `uint8_t cellAt(uint8_t column, uint8_t row)` | The colour number stored for a field cell, 0 if it is empty. |
 | `uint8_t randomShape()` | A linear congruential generator on `seed`; returns an index into `kShapes` (eight shapes of two to four cells). |
 | `bool fits(const Shape &shape, int8_t x, int8_t y)` | True if every cell of the shape at that position is inside the field and free. |
 | `Shape turned(const Shape &shape)` | The shape turned a quarter: (x, y) becomes (-y, x), moved back so the smallest x and y are 0. |
-| `bool spawn()` | Makes the next shape the falling piece at the top, draws a new next shape, and returns whether it has room. |
-| `void newGame()` | Clears the field and the score, seeds the generator from the tick count, and spawns the first piece. |
-| `void lockPiece()` | Writes the piece into the field, removes full rows (one point each, with a beep), and spawns the next piece; the game ends if that one does not fit. |
-| `void beep(uint16_t hz, uint8_t frames)` | Sounds the buzzer at `hz` hertz for that many frames through `setBuzzerTone()`, which is silent when `BuzzerEnabled` is 0. |
-| `void block(uint8_t x, uint8_t y, uint8_t width, uint8_t height)` | Draws a filled rectangle given in upright pixels (80 wide, 160 high) onto the lying display with `Display::drawFilledRect()`. With `Display::getRotation()` false the upright bottom is the left end of the display, otherwise the right end, so "down" is towards the tip in both orientations. |
+| `bool spawn()` | Makes the next shape the falling piece at the top (its colour number is the shape index plus 1), draws a new next shape, and returns whether it has room. |
+| `void newGame()` | Clears the field and the score, seeds the generator from the tick count, silences the buzzer, and spawns the first piece. |
+| `bool rowFull(uint8_t row)` | True if no cell of the row is empty. |
+| `void lockPiece()` | Writes the piece into the field, removes full rows (one point each), and spawns the next piece; if that one does not fit the game ends, the music stops and the sad horn starts. |
+| `void music()` | Starts the last tune of `kTunes` whenever no tune is playing, so it loops, and sets its tempo to 100 per cent plus 4 per point, up to 200. |
+| `void horn(TickType_t now)` | Steps through `kHorn`, four falling notes in hertz and milliseconds, with `setBuzzerTone()`; the last note alternates between two pitches every 80 ms. |
+| `void block(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t rgb565)` | Paints a filled rectangle given in upright pixels (80 wide, 160 high) onto the lying panel with `LCD::fillPanelRect()`. With `Display::getRotation()` false the upright bottom is the left end of the display, otherwise the right end, so "down" is towards the tip in both orientations. |
 | `void drawNumber(uint16_t value, uint8_t x, uint8_t y)` | Draws three digits from the 3 x 5 pixel table `kDigits`, each pixel 3 x 3. |
-| `void draw(bool showScore)` | Draws the score, the next piece, the walls, the field and the falling piece, and asks for the accent colour on the score strip with `LCD::setMonoRegions()` (right-handed orientation only: the colour regions are whole display columns counted from the left). |
+| `void drawAll()` | Fills the panel with the background, draws the walls of the field, and marks everything else as not yet shown. |
+| `void drawChanges(bool scoreVisible)` | Paints the field cells (with the falling piece), the score and the next piece where they differ from what is shown. |
+| `OperatingMode leave(guiContext *cxt)` | The steps for leaving the game described above. |
 
 ## `source/Core/Threads/UI/logic/TemperatureAdjust.cpp`
 

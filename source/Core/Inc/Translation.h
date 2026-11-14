@@ -85,6 +85,10 @@ extern const char *SmallCal100Busy;
 extern const char *SmallCal100Saved;
 extern const char *SmallCal100Bad1;
 extern const char *SmallCal100Bad2;
+extern const char *SmallBlocksName1;
+extern const char *SmallBlocksName2;
+extern const char *SmallBlocksName3;
+extern const char *SmallBlocksName4;
 // Card theme: whole words for values the stock menu shows as one letter
 extern const char *LargeCardWordOff;
 extern const char *LargeCardColour0;

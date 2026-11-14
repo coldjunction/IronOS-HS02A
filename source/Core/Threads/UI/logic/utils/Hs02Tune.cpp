@@ -64,6 +64,7 @@ constexpr uint8_t  kIdle      = 0xFF;
 constexpr uint16_t kGapMs     = 40; // silence at the end of each note, so repeated notes are heard apart
 
 uint8_t    playing  = kIdle; // which tune, or kIdle
+uint8_t    tempo    = 100;   // per cent of the written speed; hs02TuneStop() puts it back to 100
 uint8_t    position = 0;     // the note that sounds next
 TickType_t noteEnds = 0;
 } // namespace
@@ -89,7 +90,12 @@ void hs02TuneStop(void) {
     playing = kIdle;
     setBuzzerTone(0);
   }
+  tempo = 100;
 }
+
+// Speed of the tune that is playing, in per cent (100 to 250). The block game speeds its music
+// up with the score.
+void hs02TuneSetTempo(uint8_t percent) { tempo = percent < 100 ? 100 : (percent > 250 ? 250 : percent); }
 
 // Called once per GUI frame.
 void hs02TuneTick(void) {
@@ -109,7 +115,7 @@ void hs02TuneTick(void) {
   }
   const Note &note = kTunes[playing].notes[position];
   setBuzzerTone(note.hz);
-  noteEnds = now + (TickType_t)note.ms * configTICK_RATE_HZ / 1000;
+  noteEnds = now + (TickType_t)note.ms * configTICK_RATE_HZ / 1000 * 100 / tempo;
   position++;
 }
 #endif

@@ -197,12 +197,18 @@ void guiRenderLoop(void) {
   hs02ApplyButtonLight();
 #endif
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
-  if (currentOperatingMode != OperatingMode::HomeScreen) {
-    hs02TuneStop(); // the tune only plays on the home screen
+  if (currentOperatingMode != OperatingMode::HomeScreen && currentOperatingMode != OperatingMode::Hs02Blocks) {
+    hs02TuneStop(); // a tune only plays on the home screen and in the block game
   }
   hs02TuneTick();
 #endif
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+  // (true for the block game as well: it paints on the panel itself, and the frame buffer,
+  // which it leaves empty, must not be sent over it)
+  const bool nativeStartupLogo = currentOperatingMode == OperatingMode::StartupLogo || currentOperatingMode == OperatingMode::Hs02Blocks;
+#else
   const bool    nativeStartupLogo = currentOperatingMode == OperatingMode::StartupLogo;
+#endif
   OperatingMode newMode           = guiHandleDraw(); // This does the screen drawing
 
   // Post draw we handle any state transitions

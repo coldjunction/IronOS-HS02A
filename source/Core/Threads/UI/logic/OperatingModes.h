@@ -39,7 +39,7 @@ enum class OperatingMode {
   TemperatureAdjust=7,  // Set point temperature adjustment
   UsbPDDebug=8,         // USB PD debugging information
   ThermalRunaway=9,     // Thermal Runaway warning state.
-  Hs02Blocks=15,        // HS-02 card theme: the block game (Hs02Blocks.cpp)
+  Hs02Blocks=15,        // HS-02 card theme: the Super High Intensity Block Simulator (Hs02Blocks.cpp)
 };
 
 enum class TransitionAnimation {

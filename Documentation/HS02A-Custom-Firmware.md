@@ -28,7 +28,7 @@ bugparty. This fork is a set of changes on top of their work.
 6. [Settings menu, entry by entry](#settings-menu-entry-by-entry)
 7. [Calibrating the temperature](#calibrating-the-temperature)
 8. [Debug pages](#debug-pages)
-9. [Tunes](#tunes) and the [block game](#block-game)
+9. [Tunes](#tunes) and the [Super High Intensity Block Simulator](#super-high-intensity-block-simulator)
 10. [Power supplies](#power-supplies)
 11. [Building from source](#building-from-source)
 12. [How the PID was tuned](#how-the-pid-was-tuned)
@@ -201,7 +201,7 @@ a fixed button layout, and there is no boot logo.
 | Power pulse duration | Length of a pulse, in steps of 250 ms. |
 | Restore default settings | Resets every setting, including the CJC calibration. |
 | Debug pages (new) | Opens the [debug pages](#debug-pages). |
-| Block game (new) | Opens the [block game](#block-game). |
+| Super High Intensity Block Simulator (new) | Opens the [game](#super-high-intensity-block-simulator). |
 
 ## Calibrating the temperature
 
@@ -310,11 +310,11 @@ To change a tune, edit the note tables in
 `source/Core/Threads/UI/logic/utils/Hs02Tune.cpp`: each entry is a pitch in Hz and a length in
 milliseconds.
 
-## Block game
+## Super High Intensity Block Simulator
 
-**Advanced settings → Block game** opens a small falling-block game. Hold the iron upright
-with the tip pointing down: the screen is used on its side, and the pieces fall towards the
-tip. The heater is off.
+**Advanced settings → Super High Intensity Block Simulator** opens a small falling-block game.
+Hold the iron upright with the tip pointing down: the screen is used on its side, and the
+pieces fall towards the tip. The heater is off.
 
 Pieces of two to four squares fall into a field 8 squares wide and 15 high. A full row
 disappears and scores a point, and the pieces fall faster as the score grows. The game ends
@@ -325,12 +325,14 @@ when a new piece has no room.
 | Up | Piece one square to the left (hold to repeat) |
 | Down | Piece one square to the right (hold to repeat) |
 | Press OK | Turn the piece a quarter |
-| Hold OK | The piece falls fast |
-| Hold Up and Down together for a second | Leave the game |
+| Hold OK for a second | Leave the game |
 | OK after the game has ended | Play again |
 
-The score is at the top left and the next piece at the top right. A cleared row and the end
-of the game each give a short beep, if "Buzzer beep" is on.
+Each of the eight shapes has its own colour. The score is at the top left and the next piece
+at the top right.
+
+With "Buzzer beep" on, "In the Hall of the Mountain King" plays while you play and speeds up
+with the score, and losing is marked by a sad horn. With it off the game is silent.
 
 ## Power supplies
 

@@ -95,7 +95,7 @@ const DOES = {
   5:  ['Next page', 'Leave', ''],
   7:  ['Lower', 'Higher', 'Done'],
   11: ['No', 'No', 'Yes'],
-  15: ['Right<br><b>With Up, hold</b> leave', 'Left', '<b>Press</b> turn<br><b>Hold</b> drop'],
+  15: ['Right', 'Left', '<b>Press</b> turn<br><b>Hold</b> leave'],
 };
 const LED_CLASS = { 2: 'led-heating', 3: 'led-hot', 4: 'led-cooling' };
 
@@ -104,7 +104,8 @@ let held = 0, moved = 0, tipOut = false, soundOn = true;
 let snapshot = null, stackTop = 0, log = [], cursor = 0, pendingDelay = FRAME_MS, timer = null;
 let shownMode = -1, shownLed = -1;
 const ctx = $('lcd').getContext('2d'), image = ctx.createImageData(160, 80);
-// The block game is played with the iron upright, tip down: its picture is shown turned a quarter.
+// The Super High Intensity Block Simulator is played with the iron upright, tip down: its
+// picture is shown turned a quarter.
 const ctxTall = $('lcdTall').getContext('2d'), imageTall = ctxTall.createImageData(80, 160);
 let shownTall = false;
 const mem8 = () => new Uint8Array(ex.memory.buffer);

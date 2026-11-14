@@ -22,7 +22,18 @@
 static void printShortDescription(SettingsItemIndex settingsItemIndex, uint16_t cursorCharPosition) {
   // print short description (default single line, explicit double line)
   uint8_t shortDescIndex = static_cast<uint8_t>(settingsItemIndex);
-  Display::printWholeScreen(translatedString(Tr->SettingsShortNames[shortDescIndex]));
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  if (settingsItemIndex == SettingsItemIndex::BlockGame) {
+    // "Super High Intensity Block Simulator" does not fit the usual two rows; the entry has no
+    // value to show, so its name takes the value's rows as well: four rows of the small font.
+    const char *const rows[] = {SmallBlocksName1, SmallBlocksName2, SmallBlocksName3, SmallBlocksName4};
+    for (uint8_t row = 0; row < 4; row++) {
+      Display::setCursor(0, row * 16);
+      Display::print(rows[row], FontStyle::SMALL);
+    }
+  } else
+#endif
+    Display::printWholeScreen(translatedString(Tr->SettingsShortNames[shortDescIndex]));
 
 // prepare cursor for value
 // make room for scroll indicator
@@ -260,7 +271,9 @@ void render_menu(const menuitem *item, guiContext *cxt) {
   if (cxt->scratch_state.state7) {
     LCD::setMonoRegions(kCardValueRow, kCardHintRow, DISPLAY_WIDTH - 4, kCardHintRow); // editing: value in accent
   } else {
-    LCD::setMonoRegions(0, kCardValueRow, DISPLAY_WIDTH - 4, kCardHintRow); // browsing: name in accent
+    // browsing: name in accent. The block game's name is four rows long (see
+    // printShortDescription), down to the hint row.
+    LCD::setMonoRegions(0, item->shortDescriptionIndex == SettingsItemIndex::BlockGame ? kCardHintRow : kCardValueRow, DISPLAY_WIDTH - 4, kCardHintRow);
   }
   return;
 #endif

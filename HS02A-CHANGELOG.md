@@ -3,6 +3,17 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 49
+
+- **The block game is now the "Super High Intensity Block Simulator"**, with the full name
+  in the menu.
+- **A colour for every shape.** The eight shapes are blue, green, red, orange, yellow, purple,
+  pink and white. The game paints straight onto the display for this, because the firmware's
+  colour screens only have four colours each.
+- **Music and a sad horn.** "In the Hall of the Mountain King" plays during the game and gets
+  faster with the score; losing plays a falling four-note horn. Both follow "Buzzer beep".
+- **Hold OK for a second to leave the game.** The fast drop and the Up-and-Down exit are gone.
+
 ## Build 47
 
 - **Block game (new, Advanced settings).** A small falling-block game for the upright screen:

@@ -388,8 +388,8 @@
       "description": "Open the debug pages"
     },
     "BlockGame": {
-      "displayText": "Block\ngame",
-      "description": "A falling-block game: hold the iron upright, tip down"
+      "displayText": "Block\nSimulator",
+      "description": "Super High Intensity Block Simulator: a falling-block game. Hold the iron upright, tip down"
     }
   },
   "gaugeLabels": {

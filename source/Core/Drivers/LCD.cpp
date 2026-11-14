@@ -113,6 +113,28 @@ void LCD::drawNativeImage(uint8_t x, uint8_t y, uint8_t w, uint8_t h, const uint
   SPI_CLASS::fastSend(rgb565, (size_t)w * h * 2);
 }
 
+#ifdef HS02_THEME_CARD
+// A filled rectangle of one colour, written to the panel directly (the block game's blocks).
+void LCD::fillPanelRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t rgb565) {
+  if (w == 0 || h == 0 || x >= LCD_WIDTH || y >= LCD_HEIGHT || (uint16_t)x + w > LCD_WIDTH || (uint16_t)y + h > LCD_HEIGHT) {
+    return;
+  }
+  const uint16_t sent = (uint16_t)~rgb565; // the panel shows the inverse, as in refreshColor()
+  uint8_t        chunk[32];
+  for (uint8_t i = 0; i < sizeof(chunk); i += 2) {
+    chunk[i]     = (uint8_t)(sent >> 8);
+    chunk[i + 1] = (uint8_t)(sent & 0xFF);
+  }
+  setDrawingWindow(x, y, w, h);
+  uint32_t bytes = (uint32_t)w * h * 2;
+  while (bytes) {
+    const uint32_t now = bytes > sizeof(chunk) ? sizeof(chunk) : bytes;
+    SPI_CLASS::fastSend(chunk, now);
+    bytes -= now;
+  }
+}
+#endif
+
 void LCD::setDrawingWindow(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
   lcdSetAreaCmds[0].data[1] = x + ST7735_XOFFSET;
   lcdSetAreaCmds[0].data[3] = x + w + ST7735_XOFFSET - 1;

@@ -646,7 +646,7 @@
       "id": "BlockGame",
       "maxLen": 7,
       "maxLen2": 15,
-      "description": "A falling-block game: hold the iron upright, tip down"
+      "description": "Super High Intensity Block Simulator: a falling-block game. Hold the iron upright, tip down"
     }
   ],
   "gaugeLabels": [

@@ -115,7 +115,8 @@ both steps are needed and what the calibration cannot do.
   allow supplies under 9 V, debug pages from the menu (with three HS-02 pages: tip
   calibration, current sense, live sensor values).
 - **Small things:** no boot logo and a shorter start-up, steadier temperature and watt numbers,
-  dimmable button light, four tunes on the buzzer, and a falling-block game in the settings.
+  dimmable button light, four tunes on the buzzer, and the Super High Intensity Block Simulator (a falling-block
+  game with music) in the settings.
 
 ## Documents
 

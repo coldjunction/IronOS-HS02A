@@ -80,6 +80,11 @@ public:
   static void setMonoAccentColour(uint16_t rgb565) { monoAccentPending = rgb565; }
   // Card menu slide: see LCD.cpp. cardScrollBegin() returns false when the stock slide applies.
   static bool cardScrollBegin();
+  // Paints a rectangle of one true RGB565 colour straight onto the panel, past the frame buffer.
+  static void fillPanelRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t rgb565);
+  // Makes the next refresh() send its frame even if the frame buffer has not changed: needed
+  // after painting on the panel directly.
+  static void forceNextRefresh() { displayChecksum = ~0U; }
   static void cardScrollStep(bool down);
   static void setMonoRegions(uint8_t accentFromRow, uint8_t accentToRow, uint8_t accentFromColumn, uint8_t mutedFromRow) {
     monoRegionsPending[0] = accentFromRow;
