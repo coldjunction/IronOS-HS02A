@@ -1,3 +1,4 @@
+#include "Hs02CardDigits.hpp"
 #include "Hs02InterSemiBoldFont.hpp"
 #include "Hs02WashFont.hpp"
 #include "OperatingModes.h"
@@ -6,6 +7,17 @@
 #include "ui_drawing.hpp"
 
 #ifdef LCD_160x80
+
+#ifdef HS02_THEME_CARD
+// A card theme accent colour (RGB565): the theme's own colour for that screen, or the one
+// picked with its colour setting. Also used for the menu (GUIThread.cpp).
+uint16_t hs02CardAccent(SettingsOptions setting, uint16_t ownColour) {
+  // Auto, Blue, Green, Red, Orange, Yellow, Purple, Pink, White
+  static const uint16_t choices[] = {0, 0x3DFF, 0x262B, 0xEA28, 0xF4E1, 0xFE62, 0xA45F, 0xF396, 0xFFFF};
+  const uint16_t        choice    = getSettingValue(setting);
+  return (choice == 0 || choice >= sizeof(choices) / sizeof(choices[0])) ? ownColour : choices[choice];
+}
+#endif
 
 namespace {
 // The 2bpp framebuffer stores semantic colour indices.  Each page supplies its
@@ -260,8 +272,200 @@ void drawWashHeating(TemperatureType_t current, TemperatureType_t target, uint32
   drawWashTenthsEmphasis(x10Watt, 6, 64, kAccent, 'W');
   drawSleepCountdown();
 }
+
+#ifdef HS02_THEME_CARD
+// ---- Card theme ---------------------------------------------------------------------------
+// Each page still has only four colours: background, white, one accent, grey.
+constexpr uint16_t kCardReadyPalette[4]  = {0x0042, 0xFFFF, 0x262B, 0x9D37}; // green
+constexpr uint16_t kCardSolderPalette[4] = {0x0042, 0xFFFF, 0xEA28, 0x9D37}; // red
+constexpr uint16_t kCardBoostPalette[4]  = {0x0042, 0xFFFF, 0xF4E1, 0x9D37}; // amber
+constexpr uint16_t kCardSleepPalette[4]  = {0x0042, 0xFFFF, 0x3DFF, 0x9D37}; // blue
+uint16_t cardPalette[4];
+
+// A mode's palette with the accent entry replaced by the colour chosen for that mode.
+const uint16_t *cardPaletteFor(const uint16_t *modePalette, SettingsOptions setting) {
+  cardPalette[kBg]     = modePalette[kBg];
+  cardPalette[kInk]    = modePalette[kInk];
+  cardPalette[kAccent] = hs02CardAccent(setting, modePalette[kAccent]);
+  cardPalette[kMuted]  = modePalette[kMuted];
+  return cardPalette;
+}
+
+constexpr uint8_t  kCardColumn = 108, kCardNumberY = 25, kCardBarX = 13, kCardBarY = 67, kCardBarWidth = 100, kCardFooterX = 120, kCardFooterY = 63;
+
+// The large reading, without leading zeros, followed by a degree ring.
+void drawCardTemperature(TemperatureType_t temperature) {
+  const uint8_t digits[3] = {(uint8_t)(temperature / 100 % 10), (uint8_t)(temperature / 10 % 10), (uint8_t)(temperature % 10)};
+  uint8_t       x         = 13;
+  bool          started   = false;
+  for (uint8_t i = 0; i < 3; ++i) {
+    if (i < 2 && !started && digits[i] == 0) {
+      continue;
+    }
+    started = true;
+    Display::drawBitmapColor(Hs02CardDigits::kDigits[digits[i]], Hs02CardDigits::kDigitWidth, Hs02CardDigits::kDigitHeight, x, kCardNumberY, kInk);
+    x += Hs02CardDigits::kDigitWidth;
+  }
+  x += 2;
+  Display::fillRectColor(x + 2, kCardNumberY, 3, 2, kInk);
+  Display::fillRectColor(x + 2, kCardNumberY + 5, 3, 2, kInk);
+  Display::fillRectColor(x, kCardNumberY + 2, 2, 3, kInk);
+  Display::fillRectColor(x + 5, kCardNumberY + 2, 2, 3, kInk);
+}
+
+void drawCardFrame(const char *label) {
+  Display::fillRectColor(4, 5, 3, 70, kAccent);
+  drawWashTextEmphasis(label, 13, 9, kAccent);
+}
+
+// Right column: a grey caption over the target temperature, in medium digits in the accent
+// colour, without leading zeros and followed by a small degree ring.
+void drawCardTarget(const char *caption, TemperatureType_t target) {
+  constexpr uint8_t kLeft = 104, kDigitsY = 23;
+  drawWashTextEmphasis(caption, kLeft, 8, kMuted);
+  const uint8_t digits[3] = {(uint8_t)(target / 100 % 10), (uint8_t)(target / 10 % 10), (uint8_t)(target % 10)};
+  uint8_t       x         = kLeft;
+  bool          started   = false;
+  for (uint8_t i = 0; i < 3; ++i) {
+    if (i < 2 && !started && digits[i] == 0) {
+      continue;
+    }
+    started = true;
+    Display::drawBitmapColor(Hs02CardDigits::kMediumDigits[digits[i]], Hs02CardDigits::kMediumWidth, Hs02CardDigits::kMediumHeight, x, kDigitsY, kAccent);
+    x += Hs02CardDigits::kMediumWidth;
+  }
+  Display::fillRectColor(x + 1, kDigitsY, 2, 1, kAccent);
+  Display::fillRectColor(x + 1, kDigitsY + 3, 2, 1, kAccent);
+  Display::fillRectColor(x, kDigitsY + 1, 1, 2, kAccent);
+  Display::fillRectColor(x + 3, kDigitsY + 1, 1, 2, kAccent);
+}
+
+// Along the bottom: heater power as a share of the power limit, with the reading beside it.
+void drawCardPowerBar(uint32_t x10Watt) {
+  uint32_t limit = (uint32_t)getSettingValue(SettingsOptions::PowerLimit) * 10;
+  if (limit == 0) {
+    limit = 1000;
+  }
+  if (x10Watt > limit) {
+    x10Watt = limit;
+  }
+  Display::fillRectColor(kCardBarX, kCardBarY + 1, kCardBarWidth, 2, kMuted);
+  const uint8_t filled = x10Watt * kCardBarWidth / limit;
+  if (filled) {
+    Display::fillRectColor(kCardBarX, kCardBarY, filled, 4, kAccent);
+  }
+}
+
+uint32_t cardVolts() { return (getInputVoltageX10(getSettingValue(SettingsOptions::VoltageDiv), 0) + 5) / 10; }
+
+// A whole number and its unit in the small grey text, e.g. "20V" or "65W".
+void drawCardValue(uint32_t value, char unit, uint8_t x, uint8_t y) {
+  const char text[] = {unit, '\0'};
+  drawWashText(text, drawWashUnsigned(value, x, y, kMuted), y, kMuted);
+}
+
+// Bottom right, beside the bar.
+void drawCardFooter(uint32_t value, char unit) { drawCardValue(value, unit, kCardFooterX, kCardFooterY); }
+
+// The reading as shown: a change of one degree is only taken over once it has lasted half a
+// second, so a reading on the edge between two values does not flicker. Two degrees or more
+// are shown at once, so heating up and cooling down are not slowed.
+TemperatureType_t cardSteadyTemperature(TemperatureType_t reading) {
+  static TemperatureType_t shown        = 0;
+  static TickType_t        differsSince = 0;
+  const TickType_t         now          = xTaskGetTickCount();
+  const int32_t            delta        = (int32_t)reading - (int32_t)shown;
+  if (delta >= 2 || delta <= -2 || (delta != 0 && (now - differsSince) >= TICKS_SECOND / 2)) {
+    shown        = reading;
+    differsSince = now;
+  } else if (delta == 0) {
+    differsSince = now;
+  }
+  return shown;
+}
+
+// Heater power for the number beside the bar, in tenths of a watt: a second, slower average
+// (about half a second) on top of x10WattHistory, kept with 8 extra bits so it does not stop
+// short of a steady value. The bar itself stays on the fast value.
+uint32_t cardSteadyWatts(uint32_t x10Watt) {
+  static int32_t    shownX256 = 0;
+  static TickType_t last      = 0;
+  const TickType_t  now       = xTaskGetTickCount();
+  if ((now - last) > TICKS_SECOND / 2) {
+    shownX256 = (int32_t)x10Watt * 256; // first frame of a heating session: no history to average
+  } else {
+    shownX256 += ((int32_t)x10Watt * 256 - shownX256) / 12;
+  }
+  last = now;
+  return (uint32_t)(shownX256 + 128) / 256;
+}
+
+
+// Home screen with no tip fitted: a tip sliding into the handle from the left, over and over.
+// Buttons work as on the normal home screen, so the settings menu stays reachable.
+void drawCardNoTip() {
+  drawCardFrame("NO TIP");
+  // 1.6 s loop: the tip slides in for 1 s, then sits in the handle for 0.6 s
+  const uint32_t t      = xTaskGetTickCount() % (TICKS_SECOND * 8 / 5);
+  const uint8_t  travel = 24;
+  const uint8_t  gap    = t < TICKS_SECOND ? (uint8_t)(travel - travel * t / TICKS_SECOND) : 0;
+  // handle on the right: collar, then grip
+  Display::fillRectColor(88, 35, 8, 10, kMuted);
+  Display::fillRectColor(96, 32, 50, 16, kMuted);
+  // tip on the left, point outwards: stepped point, then shaft up to the collar
+  const uint8_t x = 38 - gap;
+  Display::fillRectColor(x, 39, 3, 1, kInk);
+  Display::fillRectColor(x + 3, 39, 4, 2, kInk);
+  Display::fillRectColor(x + 7, 38, 5, 4, kInk);
+  Display::fillRectColor(x + 12, 38, 38, 4, kInk);
+  if (gap == 0) {
+    Display::fillRectColor(88, 33, 2, 14, kAccent); // seated
+  }
+  drawWashText("INSERT TIP", 13, 58, kMuted);
+  drawCardFooter(cardVolts(), 'V');
+}
+
+void drawCardIdle(TemperatureType_t tipTemp) {
+  Display::setColorPalette(cardPaletteFor(kCardReadyPalette, SettingsOptions::ColourReady));
+  if (isTipDisconnected()) {
+    drawCardNoTip();
+    return;
+  }
+  drawCardFrame(Hs02WashFont::kLabels.ready);
+  // the caller passes degrees C; the target beside it is in the unit the user chose
+  drawCardTemperature(cardSteadyTemperature(getSettingValue(SettingsOptions::TemperatureInF) ? TipThermoModel::getTipInF() : tipTemp));
+  drawCardTarget(Hs02WashFont::kLabels.set, getSettingValue(SettingsOptions::SolderingTemp));
+  drawCardPowerBar(0);
+  drawCardFooter(cardVolts(), 'V');
+}
+
+void drawCardSoldering(bool boostModeOn) {
+  Display::setColorPalette(boostModeOn ? cardPaletteFor(kCardBoostPalette, SettingsOptions::ColourBoost) : cardPaletteFor(kCardSolderPalette, SettingsOptions::ColourHeating));
+  const uint32_t x10Watt = x10WattHistory.average();
+  drawCardFrame(boostModeOn ? Hs02WashFont::kLabels.boost : "HEATING");
+  drawCardTemperature(cardSteadyTemperature(getSettingValue(SettingsOptions::TemperatureInF) ? TipThermoModel::getTipInF() : TipThermoModel::getTipInC()));
+  drawCardTarget("TARGET", getSettingValue(boostModeOn ? SettingsOptions::BoostTemp : SettingsOptions::SolderingTemp));
+  drawCardPowerBar(x10Watt);
+  drawCardFooter((cardSteadyWatts(x10Watt) + 5) / 10, 'W');
+  drawCardValue(cardVolts(), 'V', 104, 46); // supply voltage, under the target
+}
+
+void drawCardSleep(TemperatureType_t tipTemp) {
+  Display::setColorPalette(cardPaletteFor(kCardSleepPalette, SettingsOptions::ColourSleep));
+  drawCardFrame(Hs02WashFont::kLabels.sleep);
+  drawCardTemperature(cardSteadyTemperature(tipTemp));
+  drawWashTextEmphasis("Zzz", kCardColumn, 9, kAccent);
+  drawWashText("IDLE", kCardColumn, 32, kMuted);
+  drawCardFooter(cardVolts(), 'V');
+}
+#endif // HS02_THEME_CARD
 } // namespace
 
+#ifdef HS02_THEME_CARD
+void ui_draw_home_gauge_idle(TemperatureType_t tipTemp) { drawCardIdle(tipTemp); }
+void ui_draw_home_gauge_soldering(bool boostModeOn) { drawCardSoldering(boostModeOn); }
+void ui_draw_home_gauge_sleep(TemperatureType_t tipTemp) { drawCardSleep(tipTemp); }
+#else
 void ui_draw_home_gauge_idle(TemperatureType_t tipTemp) {
   Display::setColorPalette(kIdlePalette);
   if (isTipDisconnected()) {
@@ -293,5 +497,6 @@ void ui_draw_home_gauge_sleep(TemperatureType_t tipTemp) {
   const uint8_t  x          = (kScreenWidth - labelWidth - valueWidth) / 2;
   drawWashTenthsEmphasis(voltage, drawWashTextEmphasis(" ", drawWashTextEmphasis(label, x, 64, kMuted), 64, kMuted), 64, kMuted, 'V');
 }
+#endif // HS02_THEME_CARD
 
 #endif

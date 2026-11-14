@@ -72,11 +72,27 @@
 #define BRIGHTNESS_STEP    13   // LCD brightness increment
 #define DEFAULT_BRIGHTNESS 105  // default LCD brightness
 
+// Screen and menu theme. Default is the port's "wash" layout. Define HS02_THEME_CARD (here,
+// or with -DHS02_THEME_CARD) for the card theme: card-style home screens, a three-row
+// settings menu with a button hint row, no boot logo, and the buzzer switched on.
+// #define HS02_THEME_CARD
+
+// Card theme: on the temperature screen + and - are the other way round from the port's
+// default (asked for by the first user of the theme). "Swap + - keys" in the menu still swaps
+// them back.
+#ifdef HS02_THEME_CARD
+#define TEMP_CHANGE_SWAP_DEFAULT 1
+#endif
+
 /**
- * Buzzer (annoying)
- *
+ * Buzzer: one short beep when the tip reaches the set temperature (Soldering.cpp).
+ * 0 is off (the port's default: "annoying"); the card theme uses a quiet setting.
  */
-#define BUZZER_VOLUME 0 // Range: 0 - 20
+#ifdef HS02_THEME_CARD
+#define BUZZER_VOLUME 6 // Range: 0 - 19
+#else
+#define BUZZER_VOLUME 0 // Range: 0 - 19
+#endif
 
 /**
  * Button backlight <- ->
@@ -119,11 +135,16 @@
 #define THERMAL_RUNAWAY_TEMP_C   3
 
 #define CUT_OUT_SETTING          0  // default to no cut-off voltage
+// With "Power source" on DC the stock IronOS floor is 9 V, which refuses a 5 V supply outright.
+// The HS-02 heats (slowly: about 10 W into this tip) from 5 V, and FNIRSI's own firmware has a
+// 5 V mode, so with the "Allow under 9V" setting switched on the floor is 4.0 V (it is 9 V when
+// the setting is off, the default). Below roughly 3.6 V the 3.3 V regulator drops out anyway.
+#define DC_MINIMUM_VOLTAGE_X10   40
 #define RECOM_VOL_CELL           33 // Minimum voltage per cell (Recommended 3.3V (33))
 #define TEMPERATURE_INF          0  // default to 0
 #define DESCRIPTION_SCROLL_SPEED 0  // 0: Slow 1: Fast - default to slow
 #define ANIMATION_LOOP           1  // 0: off 1: on
-#define ANIMATION_SPEED          settingOffSpeed_t::MEDIUM
+#define ANIMATION_SPEED          settingOffSpeed_t::FAST
 
 #define ADC_MAX_READING  (4096 * 8)  // oversample 12bit adc 8 times
 #define ADC_VDD_MV        3300       // ADC max reading millivolts
@@ -158,7 +179,7 @@
 
 #define VOLTAGE_DIV        540 // 540 - Default divider from schematic
 #define CALIBRATION_OFFSET 900 // 900 - Default adc offset in uV
-#define POWER_LIMIT        60  // 60 watts default limit
+#define POWER_LIMIT        100 // 100 watts default limit (was 60); needs a supply that can deliver it
 
 #define USB_PD_VMAX        20 // Maximum voltage for PD to negotiate
 #define MAX_POWER_LIMIT    100
@@ -166,6 +187,19 @@
 #define OP_AMP_GAIN_STAGE  57
 
 #define HARDWARE_MAX_WATTAGE_X10 1000    // 100W
+
+// No soft start: heater power goes to whatever the controller asks for at once. (For a while
+// this build ramped it over half a second with SLEW_LIMIT 100, in case a charger cut out on a
+// 0 -> 100 W step; with a charger that can supply the power limit that only delays heating.)
+// #define SLEW_LIMIT 100
+
+// How quickly the power shown on screen follows the real heater power: weight (of 256) given
+// to each new 50 ms sample. The shared default of 24 takes about 1.5 s to catch up. The filter
+// (expMovingAverage.h) is integer maths that rounds down, so a value approached from below
+// stops short of it by up to (256 - weight) / weight tenths of a watt: 0.9 W with 24 (a steady
+// 100 W showed as 99 W), 0.2 W with 96. It still stops short; the card theme rounds to the
+// nearest watt, which hides what is left.
+#define WATT_HISTORY_WEIGHT 96
 
 // #define OLED_I2CBB1    0
 // #define TIPTYPE_T12    0 // Can manually pick a T12 tip
@@ -182,10 +216,64 @@
 
 /// Use PID Control
 #define TIP_CONTROL_PID
+
+// HS-02A PID profiles. Exactly one is active; the hybrid is the default.
+//
+//   (default)          hybrid: factory-sized proportional gain, plus the integral term
+//                      stock lacks, on the 0.1 C reading
+//   HS02_FACTORY_PID   gains equivalent to the stock FNIRSI control law
+//   HS02_ORIGINAL_PID  this fork's tuning before the hybrid (40 / 700 / 8000)
+//
+// What stock does, read from APP_HS_02A_V2.2.0_260807.bin (control function at
+// 0x08009fb0, gains in .data at 0x20000018). Every 10 ms, on a 40-sample average:
+//   duty % = 0.81 * e + 2.38 * (e - e1) + 0.28 * (e - 2*e1 + e2)      e in degrees C
+// The result is assigned, not accumulated: there is NO integral term. Stock settles
+// below the set point by (holding duty % / 0.81) degrees C and hides it by drawing the
+// reading 10 C closer to the set point.
+//
+// Stock gains in this PID's units (output in x10 W, duty = W * TIP_RESISTANCE / V^2):
+//   KP: 0.81 % per C at 20 V = 0.0081 * 400 / 2.5 = 1.30 W per C            -> 13
+//   KD: 2.38 % per C per 10 ms = 0.0238 % s/C = 0.038 W s/C = 381 x10W ms/C -> 380
+//   KI: none
+//
+// Hybrid. First chosen in simulation only (KP 20 / KI 1000 / KD 2000), then corrected after a
+// real HS-02A overshot a 320 C set point to about 345 C on heat-up with a 100 W limit. That
+// overshoot is reproduced by a tip model whose sensor lags its heater by 0.6-1.0 s, and the
+// values below were chosen on that family of models (overshoot about 5 C there). They have
+// NOT yet been confirmed on the iron:
+//   KP 20     1.5x stock.
+//   KI 700    removes the droop stock leaves.
+//   KD 12000  leads the lagging sensor so power is cut before the reading arrives; 20000
+//             and above oscillated in the model.
+//   INTEGRAL_ZONE 30  the integral only builds within 30 C of the set point, so it cannot
+//             load up during the approach.
+//   INTEGRAL_LIMIT_SCALE 60  lets the integral reach 60 % of the power limit on a heavy
+//             joint.
+//   INPUT_SCALE 10  the PID works on the 0.1 C reading.
+// #define HS02_FACTORY_PID
+// #define HS02_ORIGINAL_PID
+
+#if defined(HS02_FACTORY_PID)
+#define TIP_PID_KP              13
+#define TIP_PID_KI              0
+#define TIP_PID_KD              380
+#define TIP_PID_INTEGRAL_LIMIT_SCALE 30 // unused with KI = 0
+#define TIP_PID_INPUT_SCALE     10
+#elif defined(HS02_ORIGINAL_PID)
 #define TIP_PID_KP              40   // Matches proven Pinecilv2 value; higher drive under load
 #define TIP_PID_KI              700  // Integral climb rate is proportional to error; 700 closes a small (2-3C) load-induced droop in ~10s. Far above the Pinecilv2 reference value (6) -- this is empirically tuned, not derived; watch for slow hunting, especially as the integral bleeds off after a heavy solder joint
 #define TIP_PID_KD              8000 // C245 has a surprisingly high inertia, needs lot of dampening
 #define TIP_PID_INTEGRAL_LIMIT_SCALE 30 // Default 5 caps integral at ~4.9W; 30 (~29W) covers measured heavy-load losses (XT60 at 430C draws 15-18W)
+#else
+#define TIP_PID_KP              20
+#define TIP_PID_KI              700
+#define TIP_PID_KD              12000
+#define TIP_PID_INTEGRAL_LIMIT_SCALE 60
+#define TIP_PID_INTEGRAL_ZONE   30
+#define TIP_PID_INTEGRAL_MAX_RATE 8 // degrees C per second; see PIDThread.cpp. Build 35: measured overshoot was 4 C
+                                    // at 320 C and 6 C on a boost to 450 C; the simulator puts both near 2-3 C with this.
+#define TIP_PID_INPUT_SCALE     10
+#endif
 
 /// Default Control if no other controller is defined
 #define TIP_THERMAL_MASS        0    // Not used for PID

@@ -167,6 +167,20 @@ void Display::useSecondaryFramebuffer(bool useSecondary) { DISPLAY_CLASS::useSec
  * **This function blocks until the transition has completed or user presses button**
  */
 void Display::transitionScrollDown(const TickType_t viewEnterTime) {
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  // Card menu: only the entry (top 64 rows) slides; hint row and position bar stay put.
+  if (DISPLAY_CLASS::cardScrollBegin()) {
+    TickType_t cardDraw = xTaskGetTickCount();
+    for (uint8_t step = 0; step < 64; step++) {
+      DISPLAY_CLASS::cardScrollStep(true);
+      if ((step & 3) == 3) {
+        DISPLAY_CLASS::refresh(true);
+        vTaskDelayUntil(&cardDraw, TICKS_100MS / 7);
+      }
+    }
+    return;
+  }
+#endif
   TickType_t startDraw       = xTaskGetTickCount();
   bool       buttonsReleased = getButtonState() == BUTTON_NONE;
 
@@ -193,6 +207,20 @@ void Display::transitionScrollDown(const TickType_t viewEnterTime) {
  * **This function blocks until the transition has completed or user presses button**
  */
 void Display::transitionScrollUp(const TickType_t viewEnterTime) {
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  // Card menu: only the entry (top 64 rows) slides; hint row and position bar stay put.
+  if (DISPLAY_CLASS::cardScrollBegin()) {
+    TickType_t cardDraw = xTaskGetTickCount();
+    for (uint8_t step = 0; step < 64; step++) {
+      DISPLAY_CLASS::cardScrollStep(false);
+      if ((step & 3) == 3) {
+        DISPLAY_CLASS::refresh(true);
+        vTaskDelayUntil(&cardDraw, TICKS_100MS / 7);
+      }
+    }
+    return;
+  }
+#endif
   TickType_t startDraw       = xTaskGetTickCount();
   bool       buttonsReleased = getButtonState() == BUTTON_NONE;
 

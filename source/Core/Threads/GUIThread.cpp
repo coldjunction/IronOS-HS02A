@@ -59,8 +59,16 @@ static bool isColorScreenMode(OperatingMode mode) {
 }
 #endif
 
+#ifdef HS02_THEME_CARD
+uint16_t hs02CardAccent(SettingsOptions setting, uint16_t ownColour); // draw_home_gauge.cpp
+#endif
+
 OperatingMode guiHandleDraw(void) {
 #if defined(LCD_160x80)
+#ifdef HS02_THEME_CARD
+  LCD::setMonoAccentColour(hs02CardAccent(SettingsOptions::ColourMenu, 0x3DFF)); // menus: blue unless a menu colour is chosen
+  LCD::setMonoRegions(0, 0, 255, 255); // all white unless the screen drawn below asks otherwise
+#endif
   const bool colorScreen = isColorScreenMode(currentOperatingMode);
   Display::setColorMode(colorScreen);
   if (colorScreen) {
@@ -169,7 +177,26 @@ OperatingMode guiHandleDraw(void) {
   };
   return newMode;
 }
+#ifdef MODEL_HS02
+void hs02CurrentSenseSample(void); // Core/BSP/Fnirsi/BSP.cpp, read-only statistics for debug page 18
+void hs02ApplyButtonLight(void);   // Core/BSP/Fnirsi/BSP.cpp
+#endif
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+void hs02TuneTick(void); // UI/logic/utils/Hs02Tune.cpp
+void hs02TuneStop(void);
+#endif
+
 void guiRenderLoop(void) {
+#ifdef MODEL_HS02
+  hs02CurrentSenseSample();
+  hs02ApplyButtonLight();
+#endif
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+  if (currentOperatingMode != OperatingMode::HomeScreen) {
+    hs02TuneStop(); // the tune only plays on the home screen
+  }
+  hs02TuneTick();
+#endif
   const bool    nativeStartupLogo = currentOperatingMode == OperatingMode::StartupLogo;
   OperatingMode newMode           = guiHandleDraw(); // This does the screen drawing
 
@@ -231,6 +258,15 @@ void guiRenderLoop(void) {
   if (!nativeStartupLogo) {
     Display::refresh();
   }
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  // The card theme shows no boot logo, which is what normally switches the backlight on.
+  // Do it here instead, after the first home / soldering / sleep frame has been sent.
+  static bool backlightRevealed = false;
+  if (!backlightRevealed && !nativeStartupLogo && isColorScreenMode(currentOperatingMode)) {
+    Display::setBrightness(getSettingValue(SettingsOptions::DisplayBrightness));
+    backlightRevealed = true;
+  }
+#endif
 
 #if defined(LCD_160x80)
   // Startup warnings are rendered into the framebuffer. Reveal the panel only
@@ -290,8 +326,20 @@ void startGUITask(void const *argument) {
 
   TickType_t startRender = xTaskGetTickCount();
   for (;;) {
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+    // Start-up steps that hand over to the next one (warnings with nothing to show, the logo
+    // step, which shows no logo in this theme) do not wait out the rest of their frame.
+    const OperatingMode before = currentOperatingMode;
     guiRenderLoop();
     resetWatchdog();
+    if (currentOperatingMode != before && (before == OperatingMode::InitialisationDone || before == OperatingMode::StartupWarnings || before == OperatingMode::StartupLogo)) {
+      startRender = xTaskGetTickCount();
+      continue;
+    }
+#else
+    guiRenderLoop();
+    resetWatchdog();
+#endif
     vTaskDelayUntil(&startRender, TICKS_100MS * 4 / 10); // Try and maintain 20-25fps ish update rate, way to fast but if we can its nice
   }
 }

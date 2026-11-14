@@ -9,7 +9,7 @@ static bool showStartupWarning(const char *warning, const ButtonState buttons, g
   return warnUser(warning, buttons);
 }
 
-OperatingMode showWarnings(const ButtonState buttons, guiContext *cxt) {
+static OperatingMode showWarningsStep(const ButtonState buttons, guiContext *cxt) {
   // Display alert if settings were reset
 
   switch (cxt->scratch_state.state1) {
@@ -122,4 +122,17 @@ OperatingMode showWarnings(const ButtonState buttons, guiContext *cxt) {
   }
 
   return OperatingMode::StartupWarnings; // Stay in warnings
+}
+
+// One check per call above. A check with nothing to show goes straight on to the next in the
+// same frame, instead of spending a blank frame each (five of them on a unit with no warnings).
+// It stops for the frame when a check is waiting (state unchanged) or drew a warning (state7).
+OperatingMode showWarnings(const ButtonState buttons, guiContext *cxt) {
+  for (;;) {
+    const uint16_t      step = cxt->scratch_state.state1;
+    const OperatingMode next = showWarningsStep(buttons, cxt);
+    if (next != OperatingMode::StartupWarnings || cxt->scratch_state.state1 == step || cxt->scratch_state.state7 != 0) {
+      return next;
+    }
+  }
 }

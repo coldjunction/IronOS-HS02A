@@ -1,5 +1,10 @@
 #include "OperatingModes.h"
 #include "ui_drawing.hpp"
+#include "configuration.h"
+// Boards may turn + and - round by default (see Fnirsi/configuration.h); the menu setting then swaps them back.
+#ifndef TEMP_CHANGE_SWAP_DEFAULT
+#define TEMP_CHANGE_SWAP_DEFAULT 0
+#endif
 
 OperatingMode gui_solderingTempAdjust(const ButtonState buttonIn, guiContext *cxt) {
 
@@ -56,7 +61,7 @@ OperatingMode gui_solderingTempAdjust(const ButtonState buttonIn, guiContext *cx
     (*autoRepeatAcceleration) = PRESS_ACCEL_INTERVAL_MAX - PRESS_ACCEL_INTERVAL_MIN;
   }
   // If buttons are flipped; flip the delta
-  if (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled)) {
+  if ((getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0) != (TEMP_CHANGE_SWAP_DEFAULT != 0)) {
     delta = -delta;
   }
   if (delta != 0) {

@@ -14,7 +14,11 @@ bool               settingsWereReset            = false;
 // FreeRTOS variables
 
 osThreadId          GUITaskHandle;
+#ifdef HS02_THEME_CARD
+static const size_t GUITaskStackSize = (1024 + 256) / 2; // the card theme's menu code runs deeper
+#else
 static const size_t GUITaskStackSize = 1024 / 2;
+#endif
 uint32_t            GUITaskBuffer[GUITaskStackSize];
 osStaticThreadDef_t GUITaskControlBlock;
 

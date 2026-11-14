@@ -346,6 +346,42 @@
     "SolderingTipType": {
       "displayText": "Soldering\nTip Type",
       "description": "Select the tip type fitted"
+    },
+    "BuzzerEnabled": {
+      "displayText": "Buzzer\nbeep",
+      "description": "Beep once when the tip reaches the set temperature"
+    },
+    "ColourReady": {
+      "displayText": "Ready\ncolour",
+      "description": "Accent colour of the home screen while idle"
+    },
+    "ColourHeating": {
+      "displayText": "Heating\ncolour",
+      "description": "Accent colour of the soldering screen"
+    },
+    "ColourBoost": {
+      "displayText": "Boost\ncolour",
+      "description": "Accent colour while boost is held"
+    },
+    "ColourSleep": {
+      "displayText": "Sleep\ncolour",
+      "description": "Accent colour of the sleep screen"
+    },
+    "ColourMenu": {
+      "displayText": "Menu\ncolour",
+      "description": "Accent colour of the settings menu"
+    },
+    "LowVoltageAllowed": {
+      "displayText": "Allow\nunder 9V",
+      "description": "Accept a DC supply below 9 V, for example 5 V USB"
+    },
+    "ButtonLight": {
+      "displayText": "Button\nlight",
+      "description": "White light behind the DOWN and UP buttons"
+    },
+    "DebugPages": {
+      "displayText": "Debug\npages",
+      "description": "Open the debug pages"
     }
   },
   "gaugeLabels": {

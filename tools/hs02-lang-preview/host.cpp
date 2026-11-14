@@ -53,6 +53,8 @@ TemperatureType_t  getTipTemp(void) { return g_tipC; }
 bool               isTipDisconnected() { return g_tipDisconnected; }
 uint16_t           X10WattsToPWM(int32_t, uint8_t) { return 0; }
 bool               hs02GetFactoryTipCal(uint32_t &a, uint32_t &b, uint32_t &c) { a = 223; b = 393; c = 572; return false; }
+void               hs02CurrentSenseSample(void) {}
+void               hs02GetCurrentSense(uint16_t &offMean, uint16_t &onMean, uint16_t &peak, uint8_t &onPwmPercent, uint16_t &onVoltsX10) { offMean = 12; onMean = 2345; peak = 2600; onPwmPercent = 100; onVoltsX10 = 200; }
 uint32_t           TipThermoModel::convertTipRawADCTouV(uint16_t raw, bool) { return raw; }
 TemperatureType_t  TipThermoModel::getTipInC(bool) { return g_tipC; }
 TemperatureType_t  TipThermoModel::getTipMaxInC() { return 450; }
@@ -166,8 +168,8 @@ int main(int argc, char **argv) {
   mono(); ui_draw_cjc_sampling(3); capture("Warnings", "CJC calibrating");
   mono(); ui_draw_soldering_profile_advanced(180, 150, 30, 0, 60); capture("Home / soldering", "profile preheat");
   mono(); ui_draw_soldering_profile_advanced(180, 150, 30, 6, 60); capture("Home / soldering", "profile cooldown");
-  // DebugMenu.cpp wraps at 17 pages on LCD_160x80.
-  for (int i = 0; i < 17; i++) { mono(); ui_draw_debug_menu(i); capture("Debug menu", "page " + std::to_string(i + 1)); }
+  // DebugMenu.cpp wraps at 19 pages on LCD_160x80.
+  for (int i = 0; i < 19; i++) { mono(); ui_draw_debug_menu(i); capture("Debug menu", "page " + std::to_string(i + 1)); }
   fclose(indexFile);
   printf("%d frames -> %s\n", frameNo, outDir.c_str());
   return 0;

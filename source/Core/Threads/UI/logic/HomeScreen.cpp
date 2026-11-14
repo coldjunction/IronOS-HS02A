@@ -5,12 +5,91 @@
 
 bool showExitMenuTransition = false;
 
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+// Easter egg, see utils/Hs02Tune.cpp
+void hs02TuneStart(uint8_t tune);
+void hs02TuneStop(void);
+bool hs02TunePlaying(void);
+
+extern bool hs02MenuWaitForRelease; // SettingsMenu.cpp
+
+// Card theme home screen buttons:
+//   UP / DOWN short   set temperature up / down by 5 C (or the "short step" setting if larger)
+//   UP held           settings menu
+//   DOWN held         the temperature screen (fine steps, hold to repeat)
+//   OK                start soldering
+// A changed set temperature is written to flash two seconds after the last press, or when
+// leaving the screen, so that stepping through values does not wear the flash.
+static TickType_t hs02SetTempSaveAt = 0;
+
+static void hs02StepSetTemperature(bool up) {
+  const bool fahrenheit = getSettingValue(SettingsOptions::TemperatureInF);
+  int16_t    step       = getSettingValue(SettingsOptions::TempChangeShortStep);
+  if (step < 5) {
+    step = 5;
+  }
+  const int16_t lowest  = fahrenheit ? MIN_TEMP_F : MIN_TEMP_C;
+  const int16_t highest = fahrenheit ? MAX_TEMP_F : MAX_TEMP_C;
+  int16_t       target  = getSettingValue(SettingsOptions::SolderingTemp);
+  // to the next multiple of the step in that direction (321 with step 5: up 325, down 320)
+  target = up ? (target / step + 1) * step : ((target + step - 1) / step - 1) * step;
+  if (target < lowest) {
+    target = lowest;
+  } else if (target > highest) {
+    target = highest;
+  }
+  setSettingValue(SettingsOptions::SolderingTemp, (uint16_t)target);
+  hs02SetTempSaveAt = xTaskGetTickCount() + 2 * TICKS_SECOND;
+}
+
+static void hs02SaveSetTemperatureIfDue(bool now) {
+  if (hs02SetTempSaveAt != 0 && (now || (int32_t)(xTaskGetTickCount() - hs02SetTempSaveAt) >= 0)) {
+    hs02SetTempSaveAt = 0;
+    saveSettings();
+  }
+}
+#endif
+
 OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt) {
   if (buttons != BUTTON_NONE && cxt->scratch_state.state1 == 0) {
     return OperatingMode::HomeScreen; // Ignore button press
   } else {
     cxt->scratch_state.state1 = 1;
   }
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+  // UP and DOWN held together: the first tune. Still held five seconds later: the second.
+  static TickType_t bothHeldSince = 0;
+  if (buttons == BUTTON_BOTH_LONG) {
+    const TickType_t now = xTaskGetTickCount();
+    if (bothHeldSince == 0) {
+      bothHeldSince = now | 1;
+      hs02TuneStart(0);
+    } else if ((now - bothHeldSince) >= 5 * TICKS_SECOND) {
+      hs02TuneStart(1);
+    }
+    return OperatingMode::HomeScreen;
+  }
+  bothHeldSince = 0;
+  if (buttons != BUTTON_NONE && hs02TunePlaying()) { // any press stops the tune, and does nothing else
+    hs02TuneStop();
+    return OperatingMode::HomeScreen;
+  }
+  hs02SaveSetTemperatureIfDue(false);
+  if (buttons == BUTTON_B_SHORT || buttons == BUTTON_F_SHORT) {
+    // UP is "+" unless "Swap + - keys" is on, as on the temperature screen
+    hs02StepSetTemperature((buttons == BUTTON_B_SHORT) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0));
+    return OperatingMode::HomeScreen;
+  }
+  if (buttons == BUTTON_B_LONG) { // UP held: settings menu
+    hs02SaveSetTemperatureIfDue(true);
+    hs02MenuWaitForRelease = true; // the button is still down when the menu takes over
+    cxt->transitionMode    = TransitionAnimation::None;
+    return OperatingMode::SettingsMenu;
+  }
+  if (buttons != BUTTON_NONE) {
+    hs02SaveSetTemperatureIfDue(true); // about to leave for soldering or the temperature screen
+  }
+#endif
   switch (buttons) {
   case BUTTON_NONE:
     // Do nothing
@@ -18,7 +97,7 @@ OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt) {
   case BUTTON_BOTH:
     break;
 
-  case BUTTON_B_LONG:
+  case BUTTON_B_LONG: // (card theme: handled above, it opens the settings menu)
 #if defined(LCD_160x80)
     // The colour gauge screen and the mono menu system share LCD buffer storage (see LCD.hpp).
     // Their slide transition routines interpret frames differently, so every crossing between

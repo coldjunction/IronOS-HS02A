@@ -69,6 +69,57 @@ uint16_t getADCVin(uint8_t sample) {
   return filter.average();
 }
 
+// ---- Heater current sense readout (diagnostic only) -------------------------------------
+// The 10 mOhm heater shunt reaches the ADC on PB1 (ADC_CURR_Channel), which the regular scan
+// already converts into ADCReadings[1], [5], ... Nothing acts on it: neither this firmware
+// nor stock (V2.2.0 never reads the channel, and never sets its "Short circuit" flag). Its
+// scaling is unknown (amplifier gain 49 or 57), so before any protection can be built on it
+// somebody has to read real numbers off an iron. These two functions collect them for
+// debug page 18 and change nothing about heating.
+//
+// All values are raw 12-bit counts (0..4095):
+//   offMean  mean of the 8 buffered samples, last time the heater was off
+//   onMean   the same, taken at the highest heater level seen since power-on
+//   peak     highest single sample seen while the heater was on
+uint16_t getInputVoltageX10(uint16_t divisor, uint8_t sample);
+
+static uint16_t currentSenseOffMean = 0, currentSenseOnMean = 0, currentSensePeak = 0, currentSenseOnVoltsX10 = 0;
+static uint8_t  currentSenseOnLevel = 0; // heater level (0..127) onMean was taken at
+
+void hs02CurrentSenseSample(void) {
+  uint32_t sum     = 0;
+  uint16_t highest = 0;
+  for (uint8_t i = 1; i < ADC_SAMPLES; i += ADC_CHANNELS) {
+    const uint16_t reading = ADCReadings[i];
+    sum += reading;
+    if (reading > highest) {
+      highest = reading;
+    }
+  }
+  const uint16_t mean  = sum / ADC_OVERSAMPLING;
+  const uint8_t  level = pendingPWM;
+  if (level == 0) {
+    currentSenseOffMean = mean;
+    return;
+  }
+  if (highest > currentSensePeak) {
+    currentSensePeak = highest;
+  }
+  if (level >= currentSenseOnLevel) {
+    currentSenseOnLevel    = level;
+    currentSenseOnMean     = mean;
+    currentSenseOnVoltsX10 = getInputVoltageX10(getSettingValue(SettingsOptions::VoltageDiv), 0);
+  }
+}
+
+void hs02GetCurrentSense(uint16_t &offMean, uint16_t &onMean, uint16_t &peak, uint8_t &onPwmPercent, uint16_t &onVoltsX10) {
+  offMean      = currentSenseOffMean;
+  onMean       = currentSenseOnMean;
+  peak         = currentSensePeak;
+  onPwmPercent = (uint8_t)((uint16_t)currentSenseOnLevel * 100 / 127);
+  onVoltsX10   = currentSenseOnVoltsX10;
+}
+
 uint16_t getInputVoltageX10(uint16_t divisor, uint8_t sample) {
   // VIN ADC maximum is 32768 == 3.3V at input == 36.3V (1:11 divider)
   // Correct divider here seems to be 90.27
@@ -141,6 +192,18 @@ bool          isTipDisconnected() {
   return tipTemp > tipDisconnectedThres;
 }
 
+// The white light behind the DOWN and UP buttons (one on/off output, LED1) follows the
+// "Button light" setting. Called once per GUI frame.
+void hs02ApplyButtonLight(void) {
+#if BUTTON_BACKLIGHT != 0
+  if (getSettingValue(SettingsOptions::ButtonLight)) {
+    GPIO_SetBits(LED_Port, LED1_Pin);
+  } else {
+    GPIO_ResetBits(LED_Port, LED1_Pin);
+  }
+#endif
+}
+
 void setStatusLED(const enum StatusLED state) {
   static bool       led;
   static TickType_t last;
@@ -189,7 +252,24 @@ void setBuzzer(bool on) {
   // 63 = 50% duty cycle -> too lound and too much current
   // 20 = 16% duty cycle -> max reasonable
   static_assert(BUZZER_VOLUME < 20);
-  TIM_SetCmp1(TIM2, on ? BUZZER_VOLUME : 0);
+  TIM_SetCmp1(TIM2, (on && getSettingValue(SettingsOptions::BuzzerEnabled)) ? BUZZER_VOLUME : 0);
+}
+
+// Sounds the buzzer at a pitch (Hz), or silences it with 0. The buzzer is driven by TIM2's
+// PWM output, so its pitch is the timer period; setBuzzer() above uses the fixed period that
+// Setup.cpp configures. The timer counts at 256 kHz according to Setup.cpp; if the timer clock
+// is really half that, everything sounds an octave lower.
+void setBuzzerTone(uint16_t hz) {
+  if (hz < 100 || !getSettingValue(SettingsOptions::BuzzerEnabled)) {
+    TIM_SetCmp1(TIM2, 0);
+    TIM2->AR  = 127; // back to the period setBuzzer() expects
+    TIM2->CNT = 0;
+    return;
+  }
+  const uint32_t period = 256000UL / hz;
+  TIM2->AR              = (uint16_t)(period - 1);
+  TIM2->CNT             = 0; // or a shorter period could be missed until the counter wraps
+  TIM_SetCmp1(TIM2, (uint16_t)(period * BUZZER_VOLUME / 128));
 }
 
 #ifdef TIP_RESISTANCE_SENSE_Pin
@@ -312,6 +392,12 @@ uint16_t getTipInertia() {
 }
 
 void showBootLogo(void) {
+#ifdef HS02_THEME_CARD
+  // Card theme: no boot logo, go straight to the home screen. The backlight stays off here;
+  // guiRenderLoop() turns it on once the first real frame is on the panel, so the panel's
+  // power-on contents are never seen.
+  return;
+#endif
   // Blit the colour FNIRSI logo (extracted from stock firmware) straight to the panel,
   // then reveal it and hold until a button is pressed or the timeout elapses.
   LCD::drawNativeImage(FNIRSI_LOGO_X, FNIRSI_LOGO_Y, FNIRSI_LOGO_W, FNIRSI_LOGO_H, fnirsiBootLogo);

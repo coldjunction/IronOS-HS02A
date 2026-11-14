@@ -30,8 +30,11 @@ int32_t                    powerSupplyWattageLimit     = 0;
 uint8_t                    heaterThermalRunawayCounter = 0;
 
 #ifdef MODEL_HS02
-constexpr TemperatureType_t hs02HighTempRampStartDegC = 350;
-constexpr TickType_t        hs02HighTempRampStepTicks = TICKS_SECOND / 5; // 1C per step, 5C/s
+// The port walked any target above 350 C up at 5 C/s to keep overshoot away from the tip's limit,
+// which made a boost to 420 C take 14 s. The ramp is switched off here by starting it above the
+// highest selectable temperature: boost and high set points are applied at once.
+constexpr TemperatureType_t hs02HighTempRampStartDegC = 500;
+constexpr TickType_t        hs02HighTempRampStepTicks = TICKS_SECOND / 5; // unused while the start is above MAX_TEMP_C
 #endif
 
 static int32_t getPIDResultX10Watts(TemperatureType_t set_point, TemperatureType_t current_value);
@@ -145,6 +148,26 @@ void startPIDTask(void const *argument __unused) {
 #ifndef TIP_PID_INTEGRAL_LIMIT_SCALE
 #define TIP_PID_INTEGRAL_LIMIT_SCALE 5
 #endif
+// Resolution of the temperatures handed to the PID, in steps per degree C: 1 (whole
+// degrees, the default) or 10 (the 0.1 C reading the firmware already has). The gains
+// keep their meaning either way; with 1 the arithmetic is unchanged.
+#ifndef TIP_PID_INPUT_SCALE
+#define TIP_PID_INPUT_SCALE 1
+#endif
+// The integral only accumulates while the tip is within this many degrees C of the set
+// point (0 = always, the default). Outside it the sum is kept, not cleared. This stops the
+// integral loading up during the last part of a heat-up, which on a tip whose sensor lags
+// its heater turns straight into overshoot.
+#ifndef TIP_PID_INTEGRAL_ZONE
+#define TIP_PID_INTEGRAL_ZONE 0
+#endif
+// Optional: the integral only accumulates while the reading approaches the set point more
+// slowly than this many degrees C per second (0 = always, the default). During a heat-up the
+// tip is still climbing fast when it enters the integral zone; whatever the integral gathers
+// then is still there when the tip arrives, and comes out as overshoot.
+#ifndef TIP_PID_INTEGRAL_MAX_RATE
+#define TIP_PID_INTEGRAL_MAX_RATE 0
+#endif
 template <class T, T Kp, T Ki, T Kd, T integral_limit_scale> struct PID {
   T previous_error_term;
   T integration_running_sum;
@@ -153,14 +176,14 @@ template <class T, T Kp, T Ki, T Kd, T integral_limit_scale> struct PID {
     const T target_delta = set_point - new_reading;
 
     // Proportional term
-    const T kp_result = Kp * target_delta;
+    const T kp_result = (Kp * target_delta) / TIP_PID_INPUT_SCALE;
 
     // Calculate the integral term, we use a shift 100 to get precision in integral as we often need small amounts
     T ki_result = integration_running_sum / 100;
 
     // Derivative term
     T derivative = (target_delta - previous_error_term);
-    T kd_result  = ((Kd * derivative) / (T)(interval_ms));
+    T kd_result  = ((Kd * derivative) / ((T)(interval_ms)*TIP_PID_INPUT_SCALE));
 
     // Summation of the outputs
     T output = kp_result + ki_result + kd_result;
@@ -174,8 +197,15 @@ template <class T, T Kp, T Ki, T Kd, T integral_limit_scale> struct PID {
     // which shows up as a slow limit cycle (oscillation) around the set point.
     const bool saturated_high = (output >= max_output) && (target_delta > 0);
     const bool saturated_low  = (output <= 0) && (target_delta < 0);
-    if (!saturated_high && !saturated_low) {
-      integration_running_sum += (target_delta * (T)interval_ms * Ki) / 1000;
+    const T    zone_delta     = target_delta < 0 ? -target_delta : target_delta;
+    const bool inside_zone    = (TIP_PID_INTEGRAL_ZONE == 0) || (zone_delta <= (T)(TIP_PID_INTEGRAL_ZONE)*TIP_PID_INPUT_SCALE);
+    // How fast the error is shrinking, in input units per interval (negative: it is growing)
+    const T    closing      = target_delta > 0 ? (previous_error_term - target_delta) : (target_delta - previous_error_term);
+    const bool closing_slow = (TIP_PID_INTEGRAL_MAX_RATE == 0) || (closing * 1000 <= (T)(TIP_PID_INTEGRAL_MAX_RATE)*TIP_PID_INPUT_SCALE * (T)interval_ms);
+    if (!saturated_high && !saturated_low && inside_zone && closing_slow) {
+      // Scale back to whole degrees before multiplying by the interval, so the product
+      // stays inside 32 bits however long the interval is
+      integration_running_sum += (((target_delta * Ki) / TIP_PID_INPUT_SCALE) * (T)interval_ms) / 1000;
     }
 
     // We constrain integration_running_sum to limit windup
@@ -197,7 +227,7 @@ template <class T, T Kp, T Ki, T Kd, T integral_limit_scale> struct PID {
     previous_error_term = target_delta;
 
     // Make sure that output is disabled
-    if (set_point < MIN_TEMP_C) {
+    if (set_point < MIN_TEMP_C * TIP_PID_INPUT_SCALE) {
       output = 0;
     }
 
@@ -312,7 +342,7 @@ int32_t getPIDResultX10Watts(TemperatureType_t set_point, TemperatureType_t curr
   // Note on powerStore. On update, if the value is provided in X10 (W) units then inertia shall be provided
   // in X10 (J / °C) units as well.
 
-  return ctrl.update(set_point, current_reading / 10, interval, getX10WattageLimits());
+  return ctrl.update(set_point * TIP_PID_INPUT_SCALE, (current_reading * TIP_PID_INPUT_SCALE) / 10, interval, getX10WattageLimits());
 #elif defined(TIP_CONTROL_ARDC1)
   return ctrl.update(set_point, current_reading / 10.0f, interval / 1000.0f, getX10WattageLimits());
 #else

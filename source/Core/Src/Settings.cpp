@@ -59,7 +59,7 @@ static const SettingConstants settingsConstants[(int)SettingsOptions::SettingsOp
     {            MIN_TEMP_C,                                                            MAX_TEMP_F,                 5,                          150}, // SleepTemp
     {                     0,                                                                    15,                 1,                   SLEEP_TIME}, // SleepTime
     {                     0,                                                                     4,                 1,              CUT_OUT_SETTING}, // MinDCVoltageCells
-    {                    24,                                                                    38,                 1,               RECOM_VOL_CELL}, // MinVoltageCells
+    {                  25,                                                                  35,                 1,               RECOM_VOL_CELL}, // MinVoltageCells: 2.5 V to 3.5 V per cell
     {                    90,                                                        QC_VOLTAGE_MAX,                 2,                           90}, // QCIdealVoltage
     {                     0,                                                  MAX_ORIENTATION_MODE,                 1,             ORIENTATION_MODE}, // OrientationMode
     {                     0,                                                                     9,                 1,                  SENSITIVITY}, // Sensitivity
@@ -111,6 +111,14 @@ static const SettingConstants settingsConstants[(int)SettingsOptions::SettingsOp
     {                     0,                                                                    12,                 1,                            0}, // HallEffectSleepTime
     {                     0, (tipType_t::TIP_TYPE_MAX - 1) > 0 ? (tipType_t::TIP_TYPE_MAX - 1) : 0,                 1,                            0}, // SolderingTipType
     {                     0,                                                                     1,                 1,                            0}, // ReverseButtonSettings
+    {                     0,                                                                     1,                 1,                            1}, // BuzzerEnabled
+    {                     0,                                                                     8,                 1,                            0}, // ColourReady
+    {                     0,                                                                     8,                 1,                            0}, // ColourHeating
+    {                     0,                                                                     8,                 1,                            0}, // ColourBoost
+    {                     0,                                                                     8,                 1,                            0}, // ColourSleep
+    {                     0,                                                                     8,                 1,                            0}, // ColourMenu
+    {                     0,                                                                     1,                 1,                            0}, // LowVoltageAllowed
+    {                     0,                                                                     1,                 1,                            1}, // ButtonLight
 };
 static_assert((sizeof(settingsConstants) / sizeof(SettingConstants)) == ((int)SettingsOptions::SettingsOptionsLength));
 
@@ -293,7 +301,12 @@ uint8_t lookupVoltageLevel() {
   auto minVoltageOnCell    = getSettingValue(SettingsOptions::MinDCVoltageCells);
   auto minVoltageCellCount = getSettingValue(SettingsOptions::MinVoltageCells);
   if (minVoltageOnCell == 0) {
+#ifdef DC_MINIMUM_VOLTAGE_X10
+    // Board-specific lower floor for a plain DC supply, when the user has allowed it
+    return getSettingValue(SettingsOptions::LowVoltageAllowed) ? DC_MINIMUM_VOLTAGE_X10 : 90;
+#else
     return 90; // 9V since iron does not function effectively below this
+#endif
   } else {
     return (minVoltageOnCell * minVoltageCellCount) + (minVoltageCellCount * 2);
   }

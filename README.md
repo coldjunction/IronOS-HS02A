@@ -1,3 +1,73 @@
+# IronOS for the FNIRSI HS-02A: card theme, retuned PID
+
+A modified version of the [bugparty/IronOS](https://github.com/bugparty/IronOS) port of
+[IronOS](https://github.com/Ralim/IronOS) for the FNIRSI HS-02A soldering iron.
+
+**Status:** developed and tested on one HS-02A. It is not an official FNIRSI or IronOS release.
+Flash it at your own risk, and read the known issues first.
+
+## Credits
+
+This fork is a set of changes on top of other people's work. Nearly all of the firmware is theirs.
+
+- **[IronOS](https://github.com/Ralim/IronOS)** by Ben V. Brown (Ralim) and its contributors:
+  the firmware itself.
+- **The HS-02 port of IronOS** by [PanKleszcz](https://github.com/PanKleszcz/IronOS),
+  [OK2CM](https://github.com/ok2cm/IronOS) and [bugparty](https://github.com/bugparty/IronOS):
+  everything that makes IronOS run on this iron, including the display driver, power and
+  button handling, the buzzer, the colour home screen, the tip temperature curve and the
+  decoding of the stock firmware's factory calibration. This fork starts from
+  bugparty/IronOS, branch `dev`, commit `93da587`.
+- **[Inter](https://github.com/rsms/inter)** by The Inter Project Authors (SIL Open Font
+  License, see [licenses/Inter-OFL-1.1.txt](licenses/Inter-OFL-1.1.txt)): the digits on the
+  home screen, already used by the port.
+
+If you want a maintained HS-02 firmware, use the port linked above. If something here is
+useful to it, it is free to take under the same licence.
+
+## What is different from the port
+
+- **PID retuned for less overshoot.** Tuned in a simulator and against measurements on the
+  iron; the stock firmware's control law was decoded for comparison. No heat-up ramp or soft
+  start: full power from the first moment.
+- **Card theme.** A redrawn ready / heating / boost / sleep screen with a colour per mode, a
+  power bar, the supply voltage, and a no-tip animation.
+- **Simpler settings menu.** One entry per screen, whole words for values, and a hint row that
+  shows what the three buttons do, in the order they sit on the iron.
+- **Cold-end reading fixes.** The reading is no longer floored at the MCU temperature, and the
+  CJC calibration only moves the cold end of the curve.
+- **New settings:** accent colour per screen, buzzer on/off, button light on/off, a switch to
+  allow supplies under 9 V, debug pages from the menu (with three HS-02 pages: tip
+  calibration, current sense, live sensor values).
+- **Small things:** no boot logo and a shorter start-up, steadier temperature and watt numbers,
+  two tunes on the buzzer.
+
+## Documents
+
+- [User guide and feature list](Documentation/HS02A-Custom-Firmware.md): installing, every
+  button, screen and menu entry, calibration, power supplies, building from source.
+- [Function reference](Documentation/HS02A-Function-Reference.md): what every function added
+  or changed by this fork does.
+- [Changelog and known issues](HS02A-CHANGELOG.md).
+
+Firmware files are attached to the [releases](../../releases).
+
+## Known limits
+
+- Units that carry a factory tip calibration are untested (the development iron has none).
+- No tip-resistance or short-circuit detection.
+- Temperature accuracy at soldering temperature has not been checked against a reference.
+- English only.
+
+## Licence
+
+GPL-3.0, the licence of IronOS (see [LICENSE](LICENSE)). The stock FNIRSI firmware is not
+included. This project is not affiliated with FNIRSI.
+
+The rest of this page is the README of the port this fork is based on.
+
+---
+
 [![Total Downloads](https://img.shields.io/github/downloads/bugparty/IronOS/total)](https://github.com/bugparty/IronOS)
 [![Latest Release](https://img.shields.io/github/v/release/bugparty/IronOS)](https://github.com/bugparty/IronOS/releases/latest)
 

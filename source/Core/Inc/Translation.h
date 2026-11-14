@@ -47,6 +47,59 @@ extern const char *SmallSymbolPDDebug;
 extern const char *SmallSymbolTipCal;
 extern const char *SmallSymbolTipCalInUse;
 extern const char *SmallSymbolTipCalUnused;
+extern const char *SmallSymbolCurrentSense;
+extern const char *SmallSymbolCurrentOff;
+extern const char *SmallSymbolCurrentOn;
+extern const char *SmallSymbolCurrentPeak;
+extern const char *SmallSymbolCurrentPwm;
+extern const char *SmallSymbolLiveRaw;
+extern const char *SmallSymbolLiveMicrovolts;
+extern const char *SmallSymbolLiveOffset;
+extern const char *SmallSymbolLiveMcu;
+extern const char *SmallSymbolLivePower;
+extern const char *SmallSymbolHintOpen;
+extern const char *SmallSymbolHintEdit;
+extern const char *SmallSymbolHintDone;
+extern const char *SmallSymbolHintRun;
+extern const char *SmallSymbolHintPrev;
+extern const char *SmallSymbolHintNext;
+extern const char *SmallSymbolHintMore;
+extern const char *SmallSymbolHintLess;
+extern const char *SmallSymbolHintYes;
+extern const char *SmallSymbolCustomBuild;
+extern const char *SmallSymbolHintNo;
+extern const char *SmallCardConfirmCalibrate1;
+extern const char *SmallCardConfirmCalibrate2;
+extern const char *SmallCardConfirmCalibrate3;
+extern const char *SmallCardConfirmCalibrate4;
+extern const char *SmallCardConfirmReset1;
+extern const char *SmallCardConfirmReset2;
+extern const char *SmallCardConfirmReset3;
+extern const char *SmallHs02CjcWarm1;
+extern const char *SmallHs02CjcWarm2;
+extern const char *SmallHs02CjcWarm3;
+// Card theme: whole words for values the stock menu shows as one letter
+extern const char *LargeCardWordOff;
+extern const char *LargeCardColour0;
+extern const char *LargeCardColour1;
+extern const char *LargeCardColour2;
+extern const char *LargeCardColour3;
+extern const char *LargeCardColour4;
+extern const char *LargeCardColour5;
+extern const char *LargeCardColour6;
+extern const char *LargeCardColour7;
+extern const char *LargeCardColour8;
+extern const char *LargeCardWordSettingRightChar;
+extern const char *LargeCardWordSettingLeftChar;
+extern const char *LargeCardWordSettingAutoChar;
+extern const char *LargeCardWordSettingSlowChar;
+extern const char *LargeCardWordSettingMediumChar;
+extern const char *LargeCardWordSettingFastChar;
+extern const char *LargeCardWordSettingStartSolderingChar;
+extern const char *LargeCardWordSettingStartSleepChar;
+extern const char *LargeCardWordSettingStartSleepOffChar;
+extern const char *LargeCardWordSettingLockBoostChar;
+extern const char *LargeCardWordSettingLockFullChar;
 extern const char *SmallSymbolSetPoint;
 extern const char *SmallSymbolBoostActive;
 extern const char *SmallSymbolState;
@@ -113,6 +166,15 @@ enum class SettingsItemIndex : uint8_t {
   SettingsReset,
   LanguageSwitch,
   SolderingTipType,
+  BuzzerEnabled,
+  ColourReady,
+  ColourHeating,
+  ColourBoost,
+  ColourSleep,
+  ColourMenu,
+  LowVoltageAllowed,
+  ButtonLight,
+  DebugPages,
   NUM_ITEMS,
 };
 

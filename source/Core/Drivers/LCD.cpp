@@ -72,10 +72,12 @@ const uint16_t *LCD::activePalette2bpp = LCD::palette2bpp;
 const FRToSSPI::SPI_CMD lcdInitCmdRotR = {ST7735_MADCTL, FRToSSPI::SPI_CMD_PAYLOAD, 1, (uint8_t[]){0x88}};
 const FRToSSPI::SPI_CMD lcdInitCmdRotL = {ST7735_MADCTL, FRToSSPI::SPI_CMD_PAYLOAD, 1, (uint8_t[]){0x48}};
 
-// LCD initialization
+// LCD initialization. The waits are the ST7735S data sheet's: 120 ms after a software reset and
+// after sleep-out. (They were 150 and 200 ms, plus 100 ms after display-on, which needs none;
+// the backlight is only switched on once the first frame has been sent anyway.)
 const FRToSSPI::SPI_CMD lcdInitCmds[] = {
-    {ST7735_SWRESET, FRToSSPI::SPI_CMD_DELAY_MS, 150,                                                                                                        NULL},
-    { ST7735_SLPOUT, FRToSSPI::SPI_CMD_DELAY_MS, 200,                                                                                                        NULL},
+    {ST7735_SWRESET, FRToSSPI::SPI_CMD_DELAY_MS, 120,                                                                                                        NULL},
+    { ST7735_SLPOUT, FRToSSPI::SPI_CMD_DELAY_MS, 120,                                                                                                        NULL},
 
     {ST7735_FRMCTR1,  FRToSSPI::SPI_CMD_PAYLOAD,   3,                                                                               (uint8_t[]){0x05, 0x3A, 0x3A}},
     {ST7735_FRMCTR2,  FRToSSPI::SPI_CMD_PAYLOAD,   3,                                                                               (uint8_t[]){0x05, 0x3A, 0x3A}},
@@ -97,7 +99,7 @@ const FRToSSPI::SPI_CMD lcdInitCmds[] = {
     { ST7735_COLMOD,  FRToSSPI::SPI_CMD_PAYLOAD,   1,                                                                                           (uint8_t[]){0x05}},
 
     {  ST7735_NORON, FRToSSPI::SPI_CMD_DELAY_MS,  10,                                                                                                        NULL},
-    { ST7735_DISPON, FRToSSPI::SPI_CMD_DELAY_MS, 100,                                                                                                        NULL},
+    { ST7735_DISPON, FRToSSPI::SPI_CMD_DELAY_MS, 10,                                                                                                        NULL},
 };
 
 FRToSSPI::SPI_CMD lcdSetAreaCmds[] = {
@@ -146,6 +148,25 @@ void LCD::initialize() {
 
   // Keep the backlight off until the first meaningful frame is ready. The boot
   // logo is a full-screen image, so an intermediate GRAM clear is unnecessary.
+#ifdef HS02_THEME_CARD
+  // ...except in the card theme, which shows no logo. The start-up checks switch the backlight
+  // on after their first frame, and if that frame is blank it is never sent, so the panel's
+  // power-on contents (random black and white pixels) were visible for a moment. Fill the
+  // whole panel memory with the card background here, before any backlight can come on.
+  {
+    const uint16_t sent = (uint16_t)~0x0042; // the panel shows the inverse, as in refreshColor()
+    uint8_t        chunk[32];
+    for (uint8_t i = 0; i < sizeof(chunk); i += 2) {
+      chunk[i]     = (uint8_t)(sent >> 8);
+      chunk[i + 1] = (uint8_t)(sent & 0xFF);
+    }
+    setDrawingWindow(0, 0, LCD_WIDTH, LCD_HEIGHT);
+    for (uint16_t n = 0; n < (LCD_WIDTH * LCD_HEIGHT * 2) / sizeof(chunk); n++) {
+      SPI_CLASS::fastSend(chunk, sizeof(chunk));
+    }
+  }
+  displayChecksum = ~0U; // the first real frame is always sent, whatever it contains
+#endif
 }
 
 void LCD::setFramebuffer(uint8_t *buffer) {
@@ -442,6 +463,89 @@ namespace {
 constexpr uint8_t kSmallW = 12, kSmallH = 16;
 constexpr uint8_t kLargeW = 24, kLargeH = 32;
 } // namespace
+
+#ifdef HS02_THEME_CARD
+uint8_t  LCD::monoRegions[4] = {0, 0, 255, 255}, LCD::monoRegionsPending[4] = {0, 0, 255, 255};
+uint16_t LCD::monoAccent = 0x3DFF, LCD::monoAccentPending = 0x3DFF;
+
+// ---- Card menu: slide only the entry, keep the hint row and position bar still ---------------
+// The stock slide moves the whole 80-row frame. Here the two frames' top 64 rows (strips 1-8)
+// are treated as one 128-row column and moved a row at a time; the hint row (strips 9-10)
+// and the position bar (the last four columns = the last 32-bit word of each strip) are
+// taken from the new frame at the start and then left alone.
+static bool cardScrollActive = false;
+
+bool LCD::cardScrollBegin() {
+  // Only between two card menu screens (both mark their hint row from row 64).
+  cardScrollActive = !colorModeActive && monoRegions[3] == 64 && monoRegionsPending[3] == 64;
+  if (!cardScrollActive) {
+    return false;
+  }
+  uint32_t *const pA = (uint32_t *)screenBuffer;
+  uint32_t *const pB = (uint32_t *)monoSecondFrameBuffer();
+  const uint16_t  wordsPerStrip = LCD_WIDTH / 4;
+  for (uint8_t strip = 0; strip < 8; strip++) {
+    pA[strip * wordsPerStrip + wordsPerStrip - 1] = pB[strip * wordsPerStrip + wordsPerStrip - 1]; // new position bar
+  }
+  memcpy(&screenBuffer[8 * LCD_WIDTH], &monoSecondFrameBuffer()[8 * LCD_WIDTH], 2 * LCD_WIDTH); // new hint row
+  displayChecksum = ~0U;
+  return true;
+}
+
+void LCD::cardScrollStep(bool down) {
+  uint32_t *const pA = (uint32_t *)screenBuffer;
+  uint32_t *const pB = (uint32_t *)monoSecondFrameBuffer();
+  const uint16_t  wordsPerStrip = LCD_WIDTH / 4;
+  for (uint16_t xPos = 0; xPos < wordsPerStrip - 1; xPos++) { // all but the position bar's word
+    if (down) { // rows move up, the new entry comes in from below
+      for (uint8_t strip = 0; strip < 7; strip++) {
+        pA[xPos + strip * wordsPerStrip] = ((pA[xPos + strip * wordsPerStrip] >> 1) & 0x7F7F7F7F) | ((pA[xPos + (strip + 1) * wordsPerStrip] & 0x01010101) << 7);
+      }
+      pA[xPos + 7 * wordsPerStrip] = ((pA[xPos + 7 * wordsPerStrip] >> 1) & 0x7F7F7F7F) | ((pB[xPos] & 0x01010101) << 7);
+      for (uint8_t strip = 0; strip < 7; strip++) {
+        pB[xPos + strip * wordsPerStrip] = ((pB[xPos + strip * wordsPerStrip] >> 1) & 0x7F7F7F7F) | ((pB[xPos + (strip + 1) * wordsPerStrip] & 0x01010101) << 7);
+      }
+      pB[xPos + 7 * wordsPerStrip] = (pB[xPos + 7 * wordsPerStrip] >> 1) & 0x7F7F7F7F;
+    } else { // rows move down, the new entry comes in from above
+      for (uint8_t strip = 7; strip > 0; strip--) {
+        pA[xPos + strip * wordsPerStrip] = ((pA[xPos + strip * wordsPerStrip] << 1) & 0xFEFEFEFE) | ((pA[xPos + (strip - 1) * wordsPerStrip] & 0x80808080) >> 7);
+      }
+      pA[xPos] = ((pA[xPos] << 1) & 0xFEFEFEFE) | ((pB[xPos + 7 * wordsPerStrip] & 0x80808080) >> 7);
+      for (uint8_t strip = 7; strip > 0; strip--) {
+        pB[xPos + strip * wordsPerStrip] = ((pB[xPos + strip * wordsPerStrip] << 1) & 0xFEFEFEFE) | ((pB[xPos + (strip - 1) * wordsPerStrip] & 0x80808080) >> 7);
+      }
+      pB[xPos] = (pB[xPos] << 1) & 0xFEFEFEFE;
+    }
+  }
+}
+
+void LCD::refreshMonoThemed() {
+  // Same colours as the card home screens (draw_home_gauge.cpp), true RGB565.
+  constexpr uint16_t kBackground = 0x0042, kInk = 0xFFFF, kMuted = 0x9D37;
+  const uint16_t     kAccent = monoAccent;
+  constexpr uint8_t  kColumnsPerSend = 8;
+  static uint8_t     wire[kColumnsPerSend * 8 * 2]; // 8 columns of 8 pixels, two bytes each; not on the GUI task's stack
+  for (uint8_t strip = 0; strip < LCD_HEIGHT / 8; strip++) {
+    setDrawingWindow(0, 8 * strip, LCD_WIDTH, 8);
+    for (uint8_t firstColumn = 0; firstColumn < LCD_WIDTH; firstColumn += kColumnsPerSend) {
+      uint8_t *out = wire;
+      for (uint8_t x = firstColumn; x < firstColumn + kColumnsPerSend; x++) {
+        const uint8_t bits = stripPointers[strip][x];
+        for (uint8_t bit = 0; bit < 8; bit++) {
+          const uint8_t  y      = strip * 8 + bit;
+          const bool     muted  = y >= monoRegions[3];
+          const bool     accent = (y >= monoRegions[0] && y < monoRegions[1]) || x >= monoRegions[2];
+          const uint16_t colour = (bits & (1u << bit)) ? (muted ? kMuted : (accent ? kAccent : kInk)) : kBackground;
+          const uint16_t sent   = (uint16_t)~colour; // the panel shows the inverse, as in refreshColor()
+          *out++                = (uint8_t)(sent >> 8);
+          *out++                = (uint8_t)(sent & 0xFF);
+        }
+      }
+      SPI_CLASS::fastSend(wire, sizeof(wire));
+    }
+  }
+}
+#endif
 
 void LCD::refreshColor() {
   // This panel scans COLUMN-MAJOR: within any drawing window the address auto-increments down a

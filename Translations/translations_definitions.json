@@ -581,6 +581,60 @@
       "maxLen": 7,
       "maxLen2": 15,
       "description": "For manually selecting the type of tip fitted"
+    },
+    {
+      "id": "BuzzerEnabled",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Beep once when the tip reaches the set temperature"
+    },
+    {
+      "id": "ColourReady",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Accent colour of the home screen while idle"
+    },
+    {
+      "id": "ColourHeating",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Accent colour of the soldering screen"
+    },
+    {
+      "id": "ColourBoost",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Accent colour while boost is held"
+    },
+    {
+      "id": "ColourSleep",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Accent colour of the sleep screen"
+    },
+    {
+      "id": "ColourMenu",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Accent colour of the settings menu"
+    },
+    {
+      "id": "LowVoltageAllowed",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Accept a DC supply below 9 V (down to 4 V), for example 5 V USB. Heating is slow at low voltage."
+    },
+    {
+      "id": "ButtonLight",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "White light behind the DOWN and UP buttons"
+    },
+    {
+      "id": "DebugPages",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Open the debug pages"
     }
   ],
   "gaugeLabels": [

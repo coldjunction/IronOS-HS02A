@@ -40,6 +40,24 @@ public:
       return;
     }
 
+#ifdef HS02_THEME_CARD
+    // Card theme: the one-colour screens go out as white on the dark card background, with
+    // the area a screen marked through setMonoRegions() in the accent colour.
+    bool accentChanged = false;
+    if (monoAccent != monoAccentPending) {
+      monoAccent    = monoAccentPending;
+      accentChanged = true;
+    }
+    for (uint8_t i = 0; i < sizeof(monoRegions); i++) {
+      if (monoRegions[i] != monoRegionsPending[i]) {
+        monoRegions[i] = monoRegionsPending[i];
+        accentChanged  = true;
+      }
+    }
+    if (checkDisplayBufferChecksum() || force || accentChanged) {
+      refreshMonoThemed();
+    }
+#else
     if (force || checkDisplayBufferChecksum()) {
       const int len = (LCD_WIDTH * (LCD_HEIGHT / 8));
 
@@ -49,7 +67,27 @@ public:
         SPI_CLASS::sendPixels(stripPointers[i], len / (LCD_HEIGHT / 8));
       }
     }
+#endif
   }
+
+#ifdef HS02_THEME_CARD
+  // Colours for the next refresh of a one-colour screen. Lit pixels are white, except:
+  //   rows accentFromRow .. accentToRow-1, and columns from accentFromColumn  -> accent
+  //   rows from mutedFromRow (takes precedence)                               -> grey
+  // A screen asks for this while it draws; the GUI loop clears the request at the start of
+  // every frame, so screens that do not ask stay white.
+  // The accent colour (RGB565) for the next refresh of a one-colour screen.
+  static void setMonoAccentColour(uint16_t rgb565) { monoAccentPending = rgb565; }
+  // Card menu slide: see LCD.cpp. cardScrollBegin() returns false when the stock slide applies.
+  static bool cardScrollBegin();
+  static void cardScrollStep(bool down);
+  static void setMonoRegions(uint8_t accentFromRow, uint8_t accentToRow, uint8_t accentFromColumn, uint8_t mutedFromRow) {
+    monoRegionsPending[0] = accentFromRow;
+    monoRegionsPending[1] = accentToRow;
+    monoRegionsPending[2] = accentFromColumn;
+    monoRegionsPending[3] = mutedFromRow;
+  }
+#endif
 
   // The shared primary buffer is one complete 2bpp colour frame. In mono mode its two halves
   // become the primary and secondary 1bpp frames used by menu transitions.
@@ -138,6 +176,11 @@ private:
   }
   static uint8_t *monoSecondFrameBuffer() { return &screenBuffer[LCD_SCREEN_BUF_SIZE]; }
   static void     refreshColor();
+#ifdef HS02_THEME_CARD
+  static void    refreshMonoThemed();
+  static uint8_t  monoRegions[4], monoRegionsPending[4];
+  static uint16_t monoAccent, monoAccentPending;
+#endif
   // Plots one radial segment at `angle`, covering radii [rInner, rOuter]. Shared by drawRing2bpp
   // and drawTick2bpp.
   static void plotRadialSegment(uint8_t cx, uint8_t cy, float angle, uint8_t rInner, uint8_t rOuter, uint8_t colorIndex);

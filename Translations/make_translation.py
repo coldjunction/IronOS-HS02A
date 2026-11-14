@@ -114,6 +114,10 @@ def write_start(f: TextIO):
     f.write('#include "Translation.h"\n')
 
 
+# Number of this custom HS-02 build. Shown on the first debug page; bump it for every release.
+CUSTOM_BUILD = 35
+
+
 def get_constants() -> List[Tuple[str, str]]:
     # Extra constants that are used in the firmware that are shared across all languages
     return [
@@ -147,6 +151,58 @@ def get_constants() -> List[Tuple[str, str]]:
         ("SmallSymbolTipCal", "Tip Cal"),
         ("SmallSymbolTipCalInUse", "In Use"),
         ("SmallSymbolTipCalUnused", "Custom Curve"),
+        ("SmallSymbolCurrentSense", "I sense raw"),
+        ("SmallSymbolCurrentOff", "off"),
+        ("SmallSymbolCurrentOn", "on"),
+        ("SmallSymbolCurrentPeak", "peak"),
+        ("SmallSymbolCurrentPwm", "pwm"),
+        ("SmallSymbolLiveRaw", "raw"),
+        ("SmallSymbolLiveMicrovolts", "uV"),
+        ("SmallSymbolLiveOffset", "ofs"),
+        ("SmallSymbolLiveMcu", "mcu"),
+        ("SmallSymbolLivePower", "pwr"),
+        ("SmallSymbolHintOpen", "open"),
+        ("SmallSymbolHintEdit", "edit"),
+        ("SmallSymbolHintDone", "save"),
+        ("SmallSymbolHintRun", "set"),
+        ("SmallSymbolHintPrev", "prev"),
+        ("SmallSymbolHintNext", "next"),
+        ("SmallSymbolHintMore", "+"),
+        ("SmallSymbolHintLess", "-"),
+        ("SmallSymbolHintYes", "yes"),
+        ("SmallSymbolCustomBuild", "Build " + str(CUSTOM_BUILD)),
+        ("SmallSymbolHintNo", "no"),
+        ("SmallCardConfirmCalibrate1", "Calibrate at"),
+        ("SmallCardConfirmCalibrate2", "next start?"),
+        ("SmallCardConfirmCalibrate3", "Tip must be"),
+        ("SmallCardConfirmCalibrate4", "cold then."),
+        ("SmallCardConfirmReset1", "Restore all"),
+        ("SmallCardConfirmReset2", "settings to"),
+        ("SmallCardConfirmReset3", "defaults?"),
+        ("SmallHs02CjcWarm1", "Iron is warm"),
+        ("SmallHs02CjcWarm2", "Calibrate"),
+        ("SmallHs02CjcWarm3", "anyway?"),
+        ("LargeCardWordOff", "Off"),
+        ("LargeCardColour0", "Auto"),
+        ("LargeCardColour1", "Blue"),
+        ("LargeCardColour2", "Green"),
+        ("LargeCardColour3", "Red"),
+        ("LargeCardColour4", "Orange"),
+        ("LargeCardColour5", "Yellow"),
+        ("LargeCardColour6", "Purple"),
+        ("LargeCardColour7", "Pink"),
+        ("LargeCardColour8", "White"),
+        ("LargeCardWordSettingRightChar", "Right"),
+        ("LargeCardWordSettingLeftChar", "Left"),
+        ("LargeCardWordSettingAutoChar", "Auto"),
+        ("LargeCardWordSettingSlowChar", "Slow"),
+        ("LargeCardWordSettingMediumChar", "Medium"),
+        ("LargeCardWordSettingFastChar", "Fast"),
+        ("LargeCardWordSettingStartSolderingChar", "Solder"),
+        ("LargeCardWordSettingStartSleepChar", "Sleep"),
+        ("LargeCardWordSettingStartSleepOffChar", "Room"),
+        ("LargeCardWordSettingLockBoostChar", "Boost"),
+        ("LargeCardWordSettingLockFullChar", "Full"),
         ("SmallSymbolSetPoint", "SET"),
         ("SmallSymbolBoostActive", "BOOST"),
         ("SmallSymbolState", "State"),
@@ -1044,10 +1100,10 @@ def get_translation_common_text(
     constants = get_constants()
     for x in constants:
         if x[0].startswith("Small"):
-            translation_common_text += f'const char* {x[0]} = "{convert_string(small_symbol_conversion_table, x[1])}";//{x[1]} \n'
+            translation_common_text += f'const char* {x[0]} = "{convert_string(small_symbol_conversion_table, x[1])}";//{chr(32).join(x[1].split())} \n'
         elif x[0].startswith("Large"):
             str = x[1]
-            translation_common_text += f'const char* {x[0]} = "{convert_string(large_symbol_conversion_table, str)}";//{x[1]} \n'
+            translation_common_text += f'const char* {x[0]} = "{convert_string(large_symbol_conversion_table, str)}";//{chr(32).join(x[1].split())} \n'
         else:
             raise ValueError(f"Constant {x} is not size encoded")
     translation_common_text += "\n"

@@ -16,6 +16,17 @@
 #include "main.hpp"
 #include "ui_drawing.hpp"
 
+// A setting value that the stock menu shows as a single letter. The HS-02 card theme has
+// room for the whole word (English), up to six large characters.
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+#define SETTING_VALUE_TEXT(id) LargeCardWord##id
+// The stock menu marks a switched-off setting with a "no entry" icon; the card theme says Off.
+#define SETTING_VALUE_OFF() Display::print(LargeCardWordOff, FontStyle::LARGE)
+#else
+#define SETTING_VALUE_TEXT(id) translatedString(Tr->id)
+#define SETTING_VALUE_OFF() Display::drawUnavailableIcon()
+#endif
+
 #ifdef POW_DC
 static void displayInputVRange(void);
 static bool showInputVOptions(void);
@@ -47,7 +58,9 @@ static void displayAdvancedSolderingScreens(void);
 static void displayAdvancedIDLEScreens(void);
 static void displayScrollSpeed(void);
 static void displayReverseButtonTempChangeEnabled(void);
+#if !(defined(LCD_160x80) && defined(HS02_THEME_CARD))
 static void displayReverseButtonSettings(void);
+#endif
 static void displayPowerLimit(void);
 
 #ifdef BLE_ENABLED
@@ -109,6 +122,17 @@ static void displayPowerPulseDuration(void);
 static void displayBrightnessLevel(void);
 static void displayInvertColor(void);
 static void displayLogoTime(void);
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+static void displayBuzzerEnabled(void);
+static void displayButtonLight(void);
+static void displayLowVoltageAllowed(void);
+static void setOpenDebugPages(void);
+static void displayColourReady(void);
+static void displayColourHeating(void);
+static void displayColourBoost(void);
+static void displayColourSleep(void);
+static void displayColourMenu(void);
+#endif
 
 #ifdef HALL_SENSOR
 static void displayHallEffect(void);
@@ -200,6 +224,13 @@ static void displayAdvancedMenu(void);
  */
 
 void noOpDisplay() {}
+
+// HS-02 card theme: a temperature value is followed by its unit letter, C or F.
+static void printTemperatureUnit(void) {
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  Display::print(getSettingValue(SettingsOptions::TemperatureInF) ? LargeSymbolDegF : LargeSymbolDegC, FontStyle::LARGE);
+#endif
+}
 /* vvv !!!DISABLE CLANG-FORMAT for menuitems initialization!!! vvv */
 
 /* clang-format off */
@@ -251,6 +282,10 @@ const menuitem powerMenu[] = {
   {SETTINGS_DESC(SettingsItemIndex::DCInCutoff), nullptr, displayInputVRange, nullptr, SettingsOptions::MinDCVoltageCells, SettingsItemIndex::DCInCutoff, 6},
   /* Minimum voltage input */
   {SETTINGS_DESC(SettingsItemIndex::MinVolCell), nullptr, displayInputMinVRange, showInputVOptions, SettingsOptions::MinVoltageCells, SettingsItemIndex::MinVolCell, 5},
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  /* HS-02: accept a DC supply below 9 V */
+  {SETTINGS_DESC(SettingsItemIndex::LowVoltageAllowed), nullptr, displayLowVoltageAllowed, nullptr, SettingsOptions::LowVoltageAllowed, SettingsItemIndex::LowVoltageAllowed, 7},
+#endif
 #endif
 #ifdef POW_QC
   /* Voltage input */
@@ -396,8 +431,11 @@ const menuitem UIMenu[] = {
   {SETTINGS_DESC(SettingsItemIndex::ScrollingSpeed), nullptr, displayScrollSpeed, nullptr, SettingsOptions::DescriptionScrollSpeed, SettingsItemIndex::ScrollingSpeed, 7},
   /* Reverse Temp change buttons +/- */
   {SETTINGS_DESC(SettingsItemIndex::ReverseButtonTempChange), nullptr, displayReverseButtonTempChangeEnabled, nullptr, SettingsOptions::ReverseButtonTempChangeEnabled, SettingsItemIndex::ReverseButtonTempChange, 7},
-  /* Reverse Settings menu buttons A/B */
+#if !(defined(LCD_160x80) && defined(HS02_THEME_CARD))
+  /* Reverse Settings menu buttons A/B. Not in the HS-02 card theme: its menu has a fixed
+     layout (DOWN, UP, OK, as the hint row shows) and does not read this setting. */
   {SETTINGS_DESC(SettingsItemIndex::ReverseButtonSettings), nullptr, displayReverseButtonSettings, nullptr, SettingsOptions::ReverseButtonSettings, SettingsItemIndex::ReverseButtonSettings, 7},
+#endif
   /* Animation Speed adjustment */
   {SETTINGS_DESC(SettingsItemIndex::AnimSpeed), nullptr, displayAnimationSpeed, nullptr, SettingsOptions::AnimationSpeed, SettingsItemIndex::AnimSpeed, 7},
   /* Animation Loop switch */
@@ -412,6 +450,16 @@ const menuitem UIMenu[] = {
   {SETTINGS_DESC(SettingsItemIndex::AdvancedIdle), nullptr, displayAdvancedIDLEScreens, nullptr, SettingsOptions::DetailedIDLE, SettingsItemIndex::AdvancedIdle, 7},
   /* Advanced soldering screen */
   {SETTINGS_DESC(SettingsItemIndex::AdvancedSoldering), nullptr, displayAdvancedSolderingScreens, nullptr, SettingsOptions::DetailedSoldering, SettingsItemIndex::AdvancedSoldering, 7},
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  /* HS-02 card theme: buzzer on/off, accent colour */
+  {SETTINGS_DESC(SettingsItemIndex::BuzzerEnabled), nullptr, displayBuzzerEnabled, nullptr, SettingsOptions::BuzzerEnabled, SettingsItemIndex::BuzzerEnabled, 7},
+  {SETTINGS_DESC(SettingsItemIndex::ButtonLight), nullptr, displayButtonLight, nullptr, SettingsOptions::ButtonLight, SettingsItemIndex::ButtonLight, 7},
+  {SETTINGS_DESC(SettingsItemIndex::ColourReady), nullptr, displayColourReady, nullptr, SettingsOptions::ColourReady, SettingsItemIndex::ColourReady, 7},
+  {SETTINGS_DESC(SettingsItemIndex::ColourHeating), nullptr, displayColourHeating, nullptr, SettingsOptions::ColourHeating, SettingsItemIndex::ColourHeating, 7},
+  {SETTINGS_DESC(SettingsItemIndex::ColourBoost), nullptr, displayColourBoost, nullptr, SettingsOptions::ColourBoost, SettingsItemIndex::ColourBoost, 7},
+  {SETTINGS_DESC(SettingsItemIndex::ColourSleep), nullptr, displayColourSleep, nullptr, SettingsOptions::ColourSleep, SettingsItemIndex::ColourSleep, 7},
+  {SETTINGS_DESC(SettingsItemIndex::ColourMenu), nullptr, displayColourMenu, nullptr, SettingsOptions::ColourMenu, SettingsItemIndex::ColourMenu, 7},
+#endif
   /* vvvv end of menu marker. DO NOT REMOVE vvvv */
   {0, nullptr, nullptr, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::NUM_ITEMS, 0}
   /* ^^^^ end of menu marker. DO NOT REMOVE ^^^^ */
@@ -446,6 +494,10 @@ const menuitem advancedMenu[] = {
   {SETTINGS_DESC(SettingsItemIndex::PowerPulseDuration), nullptr, displayPowerPulseDuration, showPowerPulseOptions, SettingsOptions::KeepAwakePulseDuration, SettingsItemIndex::PowerPulseDuration, 7},
   /* Resets settings */
   {SETTINGS_DESC(SettingsItemIndex::SettingsReset), setResetSettings, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::SettingsReset, 7},
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  /* HS-02 card theme: the debug pages, without having to hold a button on the home screen */
+  {SETTINGS_DESC(SettingsItemIndex::DebugPages), setOpenDebugPages, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::DebugPages, 7},
+#endif
   /* vvvv end of menu marker. DO NOT REMOVE vvvv */
   {0, nullptr, nullptr, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::NUM_ITEMS, 0}
   /* ^^^^ end of menu marker. DO NOT REMOVE ^^^^ */
@@ -479,9 +531,53 @@ static void printShortDescription(SettingsItemIndex settingsItemIndex, uint16_t 
 }
 
 static int userConfirmation(const char *message) {
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  // Card theme: the two prompts become a short text that fits on the screen at once, over
+  // a hint row in button order (DOWN, UP, OK): no / no / yes. Other messages still scroll.
+  const char *text[4] = {nullptr, nullptr, nullptr, nullptr}; // one small-font row each
+  if (message == translatedString(Tr->SettingsCalibrationWarning)) {
+    text[0] = SmallCardConfirmCalibrate1;
+    text[1] = SmallCardConfirmCalibrate2;
+    text[2] = SmallCardConfirmCalibrate3;
+    text[3] = SmallCardConfirmCalibrate4;
+  } else if (message == translatedString(Tr->SettingsResetWarning)) {
+    text[0] = SmallCardConfirmReset1;
+    text[1] = SmallCardConfirmReset2;
+    text[2] = SmallCardConfirmReset3;
+  }
+  if (text[0] != nullptr) {
+    for (;;) {
+      Display::clearScreen();
+      for (uint8_t row = 0; row < 4 && text[row] != nullptr; row++) {
+        Display::setCursor(0, row * 16);
+        Display::print(text[row], FontStyle::SMALL);
+      }
+      Display::setCursor(0, 64); // DOWN
+      Display::print(SmallSymbolHintNo, FontStyle::SMALL);
+      Display::setCursor(54, 64); // UP
+      Display::print(SmallSymbolHintNo, FontStyle::SMALL);
+      Display::setCursor(108, 64); // OK
+      Display::print(SmallSymbolHintYes, FontStyle::SMALL);
+      LCD::setMonoRegions(0, 0, 255, 64);
+      switch (getButtonState()) {
+      case BUTTON_OK_SHORT:
+        return 1;
+      case BUTTON_NONE:
+        break;
+      default:
+        return 0;
+      }
+      Display::refresh();
+      osDelay(40);
+    }
+  }
+#endif
   TickType_t tickStart = xTaskGetTickCount();
   for (;;) {
     drawScrollingText(message, xTaskGetTickCount() - tickStart);
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+    LCD::setMonoRegions(0, 0, 255, 255); // one colour, not the menu's split
+#endif
 
     ButtonState buttons = getButtonState();
     switch (buttons) {
@@ -543,7 +639,7 @@ static void displayQCInputV(void) {
 
 static void displayPDNegTimeout(void) {
   auto value = getSettingValue(SettingsOptions::PDNegTimeout);
-  value ? Display::printNumber(value, 2, FontStyle::LARGE) : Display::drawUnavailableIcon();
+  value ? Display::printNumber(value, 2, FontStyle::LARGE) : SETTING_VALUE_OFF();
 }
 
 static void displayUSBPDMode(void) {
@@ -598,48 +694,55 @@ static void setBoostTemp(void) {
 static void displayBoostTemp(void) {
   if (getSettingValue(SettingsOptions::BoostTemp)) {
     Display::printNumber(getSettingValue(SettingsOptions::BoostTemp), 3, FontStyle::LARGE);
+    printTemperatureUnit();
   } else {
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
   }
 }
 
 static void displayAutomaticStartMode(void) {
   switch (getSettingValue(SettingsOptions::AutoStartMode)) {
   case autoStartMode_t::NO:
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
     break;
   case autoStartMode_t::SOLDER:
-    Display::print(translatedString(Tr->SettingStartSolderingChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingStartSolderingChar), FontStyle::LARGE);
     break;
   case autoStartMode_t::SLEEP:
-    Display::print(translatedString(Tr->SettingStartSleepChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingStartSleepChar), FontStyle::LARGE);
     break;
   case autoStartMode_t::ZERO:
-    Display::print(translatedString(Tr->SettingStartSleepOffChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingStartSleepOffChar), FontStyle::LARGE);
     break;
   default:
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
     break;
   }
 }
 
-static void displayTempChangeShortStep(void) { Display::printNumber(getSettingValue(SettingsOptions::TempChangeShortStep), 2, FontStyle::LARGE); }
+static void displayTempChangeShortStep(void) {
+  Display::printNumber(getSettingValue(SettingsOptions::TempChangeShortStep), 2, FontStyle::LARGE);
+  printTemperatureUnit();
+}
 
-static void displayTempChangeLongStep(void) { Display::printNumber(getSettingValue(SettingsOptions::TempChangeLongStep), 2, FontStyle::LARGE); }
+static void displayTempChangeLongStep(void) {
+  Display::printNumber(getSettingValue(SettingsOptions::TempChangeLongStep), 2, FontStyle::LARGE);
+  printTemperatureUnit();
+}
 
 static void displayLockingMode(void) {
   switch (getSettingValue(SettingsOptions::LockingMode)) {
   case lockingMode_t::DISABLED:
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
     break;
   case lockingMode_t::BOOST:
-    Display::print(translatedString(Tr->SettingLockBoostChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingLockBoostChar), FontStyle::LARGE);
     break;
   case lockingMode_t::FULL:
-    Display::print(translatedString(Tr->SettingLockFullChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingLockFullChar), FontStyle::LARGE);
     break;
   default:
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
     break;
   }
 }
@@ -698,7 +801,7 @@ static void displaySensitivity(void) {
   if (getSettingValue(SettingsOptions::Sensitivity)) {
     Display::printNumber(getSettingValue(SettingsOptions::Sensitivity), 1, FontStyle::LARGE, false);
   } else {
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
   }
 }
 static bool showSleepOptions(void) { return getSettingValue(SettingsOptions::Sensitivity) > 0; }
@@ -722,11 +825,14 @@ static void setSleepTemp(void) {
   setSettingValue(SettingsOptions::SleepTemp, temp);
 }
 
-static void displaySleepTemp(void) { Display::printNumber(getSettingValue(SettingsOptions::SleepTemp), 3, FontStyle::LARGE); }
+static void displaySleepTemp(void) {
+  Display::printNumber(getSettingValue(SettingsOptions::SleepTemp), 3, FontStyle::LARGE);
+  printTemperatureUnit();
+}
 
 static void displaySleepTime(void) {
   if (getSettingValue(SettingsOptions::SleepTime) == 0) {
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
   } else if (getSettingValue(SettingsOptions::SleepTime) < 6) {
     Display::printNumber(getSettingValue(SettingsOptions::SleepTime) * 10, 2, FontStyle::LARGE);
     Display::print(LargeSymbolSeconds, FontStyle::LARGE);
@@ -740,7 +846,7 @@ static void displaySleepTime(void) {
 
 static void displayShutdownTime(void) {
   if (getSettingValue(SettingsOptions::ShutdownTime) == 0) {
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
   } else {
     Display::printNumber(getSettingValue(SettingsOptions::ShutdownTime), 2, FontStyle::LARGE);
     Display::print(LargeSymbolMinutes, FontStyle::LARGE);
@@ -752,7 +858,7 @@ static void displayHallEffect(void) {
   if (getSettingValue(SettingsOptions::HallEffectSensitivity)) {
     Display::printNumber(getSettingValue(SettingsOptions::HallEffectSensitivity), 1, FontStyle::LARGE, false);
   } else {
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
   }
 }
 static bool showHallEffect(void) { return getHallSensorFitted(); }
@@ -778,6 +884,9 @@ static bool showSolderingTipType(void) { return tipType_t::TIP_TYPE_MAX != 0; }
 
 static void setTempF(const enum SettingsOptions option) {
   uint16_t Temp = getSettingValue(option);
+  if (option == SettingsOptions::BoostTemp && Temp == 0) {
+    return; // 0 is "boost off", not a temperature: it stays off in either unit
+  }
   if (getSettingValue(SettingsOptions::TemperatureInF)) {
     // Change temp to the F equiv
     // C to F == F= ( (C*9) +160)/5
@@ -834,16 +943,16 @@ static void setDisplayRotation(void) {
 static void displayDisplayRotation(void) {
   switch (getSettingValue(SettingsOptions::OrientationMode)) {
   case orientationMode_t::RIGHT:
-    Display::print(translatedString(Tr->SettingRightChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingRightChar), FontStyle::LARGE);
     break;
   case orientationMode_t::LEFT:
-    Display::print(translatedString(Tr->SettingLeftChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingLeftChar), FontStyle::LARGE);
     break;
   case orientationMode_t::AUTO:
-    Display::print(translatedString(Tr->SettingAutoChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingAutoChar), FontStyle::LARGE);
     break;
   default:
-    Display::print(translatedString(Tr->SettingRightChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingRightChar), FontStyle::LARGE);
     break;
   }
 }
@@ -852,25 +961,53 @@ static void displayDisplayRotation(void) {
 
 static void displayCoolingBlinkEnabled(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::CoolingTempBlink)); }
 
-static void displayScrollSpeed(void) { Display::print(translatedString((getSettingValue(SettingsOptions::DescriptionScrollSpeed)) ? Tr->SettingFastChar : Tr->SettingSlowChar), FontStyle::LARGE); }
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+static void displayBuzzerEnabled(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::BuzzerEnabled)); }
+static void displayButtonLight(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::ButtonLight)); }
+static void displayLowVoltageAllowed(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::LowVoltageAllowed)); }
+
+// "Debug pages" menu entry: a menu handler cannot change screen itself, so it leaves a request
+// that the card menu (SettingsMenu.cpp) picks up straight after calling it.
+bool        hs02DebugPagesRequested = false;
+static void setOpenDebugPages(void) { hs02DebugPagesRequested = true; }
+
+// Colour name for one of the accent colour settings; 0 is "Auto" (the theme's own colour).
+static void displayCardColour(SettingsOptions option) {
+  const char *const names[] = {LargeCardColour0, LargeCardColour1, LargeCardColour2, LargeCardColour3, LargeCardColour4, LargeCardColour5, LargeCardColour6, LargeCardColour7, LargeCardColour8};
+  uint16_t          choice  = getSettingValue(option);
+  if (choice >= sizeof(names) / sizeof(names[0])) {
+    choice = 0;
+  }
+  Display::print(names[choice], FontStyle::LARGE);
+}
+static void displayColourReady(void) { displayCardColour(SettingsOptions::ColourReady); }
+static void displayColourHeating(void) { displayCardColour(SettingsOptions::ColourHeating); }
+static void displayColourBoost(void) { displayCardColour(SettingsOptions::ColourBoost); }
+static void displayColourSleep(void) { displayCardColour(SettingsOptions::ColourSleep); }
+static void displayColourMenu(void) { displayCardColour(SettingsOptions::ColourMenu); }
+#endif
+
+static void displayScrollSpeed(void) { Display::print(((getSettingValue(SettingsOptions::DescriptionScrollSpeed)) ? SETTING_VALUE_TEXT(SettingFastChar) : SETTING_VALUE_TEXT(SettingSlowChar)), FontStyle::LARGE); }
 
 static void displayReverseButtonTempChangeEnabled(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled)); }
 
+#if !(defined(LCD_160x80) && defined(HS02_THEME_CARD))
 static void displayReverseButtonSettings(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::ReverseButtonSettings)); }
+#endif
 
 static void displayAnimationSpeed(void) {
   switch (getSettingValue(SettingsOptions::AnimationSpeed)) {
   case settingOffSpeed_t::SLOW:
-    Display::print(translatedString(Tr->SettingSlowChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingSlowChar), FontStyle::LARGE);
     break;
   case settingOffSpeed_t::MEDIUM:
-    Display::print(translatedString(Tr->SettingMediumChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingMediumChar), FontStyle::LARGE);
     break;
   case settingOffSpeed_t::FAST:
-    Display::print(translatedString(Tr->SettingFastChar), FontStyle::LARGE);
+    Display::print(SETTING_VALUE_TEXT(SettingFastChar), FontStyle::LARGE);
     break;
   default:
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
     break;
   }
 }
@@ -893,7 +1030,7 @@ static void displayInvertColor(void) {
 static void displayLogoTime(void) {
   switch (getSettingValue(SettingsOptions::LOGOTime)) {
   case logoMode_t::SKIP:
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
     break;
   case logoMode_t::ONETIME:
     Display::drawRepeatOnceIcon();
@@ -918,7 +1055,7 @@ static void displayBluetoothLE(void) { Display::drawCheckbox(getSettingValue(Set
 
 static void displayPowerLimit(void) {
   if (getSettingValue(SettingsOptions::PowerLimit) == 0) {
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
   } else {
     Display::printNumber(getSettingValue(SettingsOptions::PowerLimit), 3, FontStyle::LARGE);
     Display::print(LargeSymbolWatts, FontStyle::LARGE);
@@ -952,14 +1089,37 @@ static void setCalibrateVIN(void) {
     Display::print(LargeSymbolVolts, FontStyle::LARGE);
     Display::setCursor(DISPLAY_WIDTH - 3 * FONT_SMALL_WIDTH, 48);
     Display::printNumber(getSettingValue(SettingsOptions::VoltageDiv), 3, FontStyle::SMALL);
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+    // Card theme: one colour for the whole reading (the menu's colour split would cut the
+    // large digits in half), and the usual hint row: DOWN lowers the voltage shown, UP raises
+    // it, OK saves.
+    Display::setCursor(18, 64);
+    Display::print(SmallSymbolHintLess, FontStyle::SMALL);
+    Display::setCursor(54 + 18, 64);
+    Display::print(SmallSymbolHintMore, FontStyle::SMALL);
+    Display::setCursor(108, 64);
+    Display::print(SmallSymbolHintDone, FontStyle::SMALL);
+    LCD::setMonoRegions(0, 0, 255, 64);
+#endif
 
     switch (getButtonState()) {
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+    case BUTTON_F_SHORT: // DOWN: a larger divider shows a lower voltage
+      nextSettingValue(SettingsOptions::VoltageDiv);
+      break;
+    case BUTTON_B_SHORT: // UP
+      prevSettingValue(SettingsOptions::VoltageDiv);
+      break;
+    case BUTTON_OK_SHORT:
+    case BUTTON_OK_LONG:
+#else
     case BUTTON_F_SHORT:
       prevSettingValue(SettingsOptions::VoltageDiv);
       break;
     case BUTTON_B_SHORT:
       nextSettingValue(SettingsOptions::VoltageDiv);
       break;
+#endif
     case BUTTON_BOTH:
     case BUTTON_F_LONG:
     case BUTTON_B_LONG:
@@ -986,7 +1146,7 @@ static void displayPowerPulse(void) {
     Display::print(LargeSymbolDot, FontStyle::LARGE);
     Display::printNumber(getSettingValue(SettingsOptions::KeepAwakePulse) % 10, 1, FontStyle::LARGE);
   } else {
-    Display::drawUnavailableIcon();
+    SETTING_VALUE_OFF();
   }
 }
 

@@ -4,6 +4,7 @@
  *  Created on: 1 May 2021
  *      Author: Ralim, MrTick
  */
+#include "Settings.h"
 #include "Setup.h"
 #include "TipThermoModel.h"
 #include "Types.h"
@@ -41,24 +42,42 @@ uint32_t interpolateFallbackTempCx10(uint32_t tipuV, uint32_t loweruV, uint32_t 
 }
 
 uint32_t fallbackTipTempCx10(uint32_t tipuV) {
-  // Absolute tip temperatures measured on one HS-02A without usable factory
-  // calibration. The 0uV point is the midpoint of a 28-33C cold-tip reading.
-  if (tipuV <= 5400) {
-    return interpolateFallbackTempCx10(tipuV, 0, 305, 5400, 2230);
+  // Absolute tip temperatures measured on one HS-02A without usable factory calibration.
+  //
+  // tipuV arrives with the calibration offset (the amplifier's reading at zero temperature
+  // difference) already removed. The points were measured with the DEFAULT offset removed, so
+  // they are kept here as amplifier-input microvolts (measured value + CALIBRATION_OFFSET) and
+  // the current offset is added back before comparing. That way a CJC calibration, which
+  // replaces the default by the unit's real zero reading, moves only the cold end of the curve
+  // and leaves the measured points where they were.
+  //
+  // The cold end: at the zero reading the tip is as warm as the point it plugs into, which no
+  // sensor on this board measures; 25C is assumed, as the stock firmware does. With the default
+  // offset, which is larger than the real zero reading on at least one unit, everything from
+  // room temperature up to roughly 50-60C reads as 25C until a CJC calibration has been run.
+  const uint32_t offset = getSettingValue(SettingsOptions::CalibrationOffset);
+  const uint32_t inputuV = tipuV + offset;
+  constexpr uint32_t p223 = 5400 + CALIBRATION_OFFSET, p273 = 6680 + CALIBRATION_OFFSET, p350 = 8370 + CALIBRATION_OFFSET;
+  constexpr uint32_t p400 = 10540 + CALIBRATION_OFFSET, p450 = 12090 + CALIBRATION_OFFSET, p500 = 13640 + CALIBRATION_OFFSET;
+  if (inputuV <= p223) {
+    if (offset >= p223) {
+      return 250;
+    }
+    return 250 + (tipuV * (2230 - 250)) / (p223 - offset);
   }
-  if (tipuV <= 6680) {
-    return interpolateFallbackTempCx10(tipuV, 5400, 2230, 6680, 2730);
+  if (inputuV <= p273) {
+    return interpolateFallbackTempCx10(inputuV, p223, 2230, p273, 2730);
   }
-  if (tipuV <= 8370) {
-    return interpolateFallbackTempCx10(tipuV, 6680, 2730, 8370, 3500);
+  if (inputuV <= p350) {
+    return interpolateFallbackTempCx10(inputuV, p273, 2730, p350, 3500);
   }
-  if (tipuV <= 10540) {
-    return interpolateFallbackTempCx10(tipuV, 8370, 3500, 10540, 4000);
+  if (inputuV <= p400) {
+    return interpolateFallbackTempCx10(inputuV, p350, 3500, p400, 4000);
   }
-  if (tipuV <= 12090) {
-    return interpolateFallbackTempCx10(tipuV, 10540, 4000, 12090, 4500);
+  if (inputuV <= p450) {
+    return interpolateFallbackTempCx10(inputuV, p400, 4000, p450, 4500);
   }
-  return interpolateFallbackTempCx10(tipuV, 12090, 4500, 13640, 5000);
+  return interpolateFallbackTempCx10(inputuV, p450, 4500, p500, 5000);
 }
 
 bool     factoryCalChecked = false;
@@ -140,7 +159,9 @@ TemperatureType_t TipThermoModel::convertuVToDegCx10(uint32_t tipuVDelta) {
   // The MCU die sensor remains around 41-43C and is not the connector's cold
   // junction temperature. Use the measured absolute-temperature curve, then
   // cancel the handle value which the generic caller adds back.
-  const uint32_t handleTempCx10 = getHandleTemperature(0);
-  const uint32_t tipTempCx10    = fallbackTipTempCx10(tipuVDelta);
-  return (tipTempCx10 > handleTempCx10) ? tipTempCx10 - handleTempCx10 : 0;
+  // The result may be negative: the MCU reading the caller adds back is usually above 25C, and
+  // clamping here made that reading, not the curve, the lowest temperature ever shown.
+  const TemperatureType_t handleTempCx10 = getHandleTemperature(0);
+  const TemperatureType_t tipTempCx10    = fallbackTipTempCx10(tipuVDelta);
+  return tipTempCx10 - handleTempCx10;
 }

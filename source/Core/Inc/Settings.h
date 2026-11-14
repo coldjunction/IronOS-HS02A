@@ -77,8 +77,17 @@ enum SettingsOptions {
   HallEffectSleepTime            = 53, // Seconds (/5) timeout to sleep when hall effect over threshold
   SolderingTipType               = 54, // Selecting the type of soldering tip fitted
   ReverseButtonSettings          = 55, // Change the A and B button assigment in Settings menu
+  BuzzerEnabled                  = 56, // HS-02: beep when the tip reaches the set temperature
+  // HS-02 card theme accent colours: 0 = the theme's own colour for that screen, 1.. = a fixed colour
+  ColourReady                    = 57, // home screen while idle
+  ColourHeating                  = 58, // soldering screen
+  ColourBoost                    = 59, // soldering screen while boosting
+  ColourSleep                    = 60, // sleep screen
+  ColourMenu                     = 61, // settings menu
+  LowVoltageAllowed              = 62, // HS-02: 1 = a DC supply below 9 V is accepted (down to DC_MINIMUM_VOLTAGE_X10)
+  ButtonLight                    = 63, // HS-02: 1 = the white light behind the DOWN and UP buttons is on
   //
-  SettingsOptionsLength = 56, // End marker
+  SettingsOptionsLength = 64, // End marker
 };
 
 typedef enum {

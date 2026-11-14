@@ -206,9 +206,8 @@ static void gpioInit(void) {
 #else
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitPeripheral(LED_Port, &GPIO_InitStructure);
-#if BUTTON_BACKLIGHT != 0
-  GPIO_SetBits(LED_Port, LED1_Pin); // Enable <-> button LEDs
-#endif
+  // The <-> button LEDs stay off here: the GUI loop switches them on once the settings are
+  // loaded, if the "Button light" setting says so (hs02ApplyButtonLight() in BSP.cpp).
 #endif
 
   // Temporary manual configs
