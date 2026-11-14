@@ -121,7 +121,9 @@ static bool showPowerPulseOptions(void);
 static void displayPowerPulseDuration(void);
 static void displayBrightnessLevel(void);
 static void displayInvertColor(void);
+#if !(defined(LCD_160x80) && defined(HS02_THEME_CARD))
 static void displayLogoTime(void);
+#endif
 #if defined(LCD_160x80) && defined(HS02_THEME_CARD)
 static void displayBuzzerEnabled(void);
 static void displayButtonLight(void);
@@ -447,7 +449,10 @@ const menuitem UIMenu[] = {
   /* Invert screen colour */
   {SETTINGS_DESC(SettingsItemIndex::ColourInversion), nullptr, displayInvertColor, nullptr, SettingsOptions::DisplayInversion, SettingsItemIndex::ColourInversion, 7},
   /* Set logo duration */
+#if !(defined(LCD_160x80) && defined(HS02_THEME_CARD))
+  /* Not in the HS-02 card theme: it shows no boot logo (showBootLogo() returns at once) */
   {SETTINGS_DESC(SettingsItemIndex::LOGOTime), nullptr, displayLogoTime, nullptr, SettingsOptions::LOGOTime, SettingsItemIndex::LOGOTime, 6},
+#endif
   /* Advanced idle screen */
   {SETTINGS_DESC(SettingsItemIndex::AdvancedIdle), nullptr, displayAdvancedIDLEScreens, nullptr, SettingsOptions::DetailedIDLE, SettingsItemIndex::AdvancedIdle, 7},
   /* Advanced soldering screen */
@@ -1123,6 +1128,7 @@ static void displayInvertColor(void) {
   Display::setInverseDisplay(getSettingValue(SettingsOptions::DisplayInversion));
 }
 
+#if !(defined(LCD_160x80) && defined(HS02_THEME_CARD))
 static void displayLogoTime(void) {
   switch (getSettingValue(SettingsOptions::LOGOTime)) {
   case logoMode_t::SKIP:
@@ -1140,6 +1146,7 @@ static void displayLogoTime(void) {
     break;
   }
 }
+#endif
 
 static void displayAdvancedIDLEScreens(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::DetailedIDLE)); }
 

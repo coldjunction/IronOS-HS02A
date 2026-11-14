@@ -3,6 +3,18 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 45
+
+- **"Temp change short" and "Temp change long" are used as set** for the Up / Down steps on the
+  ready and heating screens. They used to be raised to at least 5 and 10. The default short
+  step is now 5 (the port's was 1). **After updating, your stored short step is still whatever
+  it was, 1 unless you changed it; set it to 5 to keep 5-degree presses.**
+
+## Build 44
+
+- **"Boot logo duration" removed from the menu.** This firmware shows no boot logo, so the
+  entry did nothing.
+
 ## Build 43
 
 - **Ready screen: holding Down changes the target on the spot**, like the heating screen. The

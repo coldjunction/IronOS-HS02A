@@ -14,9 +14,9 @@ bool hs02TunePlaying(void);
 extern bool hs02MenuWaitForRelease; // SettingsMenu.cpp
 
 // Card theme home screen buttons:
-//   UP / DOWN short   set temperature up / down by 5 C (or the "short step" setting if larger)
+//   UP / DOWN short   set temperature up / down by the "Temp change short" setting
 //   UP held           settings menu
-//   DOWN held         set temperature down by the large step (10 C unless set larger), repeating,
+//   DOWN held         set temperature down by the "Temp change long" setting, repeating,
 //                     faster the longer it is held: the settings menu's pacing. The number
 //                     changes on this screen. (The full-screen temperature screen of the port
 //                     is not opened from anywhere in this theme.)
@@ -26,13 +26,13 @@ extern bool hs02MenuWaitForRelease; // SettingsMenu.cpp
 // The heating screen (Soldering.cpp) steps the target with the same two functions.
 static TickType_t hs02SetTempSaveAt = 0;
 
-// large: the step of a held button ("Temp change long", at least 10) instead of that of a press
-// ("Temp change short", at least 5).
+// large: the step of a held button (the "Temp change long" setting) instead of that of a press
+// (the "Temp change short" setting). Both are used as set; this board's defaults are 5 and 10.
 void hs02StepSetTemperature(bool up, bool large) {
   const bool fahrenheit = getSettingValue(SettingsOptions::TemperatureInF);
   int16_t    step       = getSettingValue(large ? SettingsOptions::TempChangeLongStep : SettingsOptions::TempChangeShortStep);
-  if (step < (large ? 10 : 5)) {
-    step = large ? 10 : 5;
+  if (step < 1) {
+    step = 1; // the settings cannot be 0, but a division follows
   }
   const int16_t lowest  = fahrenheit ? MIN_TEMP_F : MIN_TEMP_C;
   const int16_t highest = fahrenheit ? MAX_TEMP_F : MAX_TEMP_C;

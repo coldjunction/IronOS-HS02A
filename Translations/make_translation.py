@@ -115,7 +115,7 @@ def write_start(f: TextIO):
 
 
 # Number of this custom HS-02 build. Shown on the first debug page; bump it for every release.
-CUSTOM_BUILD = 43
+CUSTOM_BUILD = 45
 
 
 def get_constants() -> List[Tuple[str, str]]:

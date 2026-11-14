@@ -63,7 +63,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | `kCal100MinAboveZerouV`, `kCal100MaxuV` | `source/Core/Src/settingsGUI.cpp` | 50, 6000 | not present | Limits in microvolts for the reading that `setCalibrate100()` stores as the 100 °C point: at least 50 above the `CalibrationOffset` setting (below that there is no signal to use) and at most 6000, the most the `Cal100uV` setting holds. Any reading in between is stored. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 43 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 45 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
 
 ## Settings added
 
@@ -280,7 +280,7 @@ Changed. The GUI task's entry function. With `MODEL_HS02` and `HS02_THEME_CARD` 
 All of the following apply only with `LCD_160x80` and `HS02_THEME_CARD`:
 
 - `powerMenu[]` gains an entry for `LowVoltageAllowed` (inside `#ifdef POW_DC`).
-- `UIMenu[]` gains entries for `BuzzerEnabled`, `ButtonLight`, `ColourReady`, `ColourHeating`, `ColourBoost`, `ColourSleep` and `ColourMenu`, and loses the entry for `ReverseButtonSettings`. The card menu has a fixed button layout and does not read that setting.
+- `UIMenu[]` gains entries for `BuzzerEnabled`, `ButtonLight`, `ColourReady`, `ColourHeating`, `ColourBoost`, `ColourSleep` and `ColourMenu`, and loses the entries for `ReverseButtonSettings` and `LOGOTime`. The card menu has a fixed button layout and does not read the first; the second sets the boot logo's duration, and the card theme shows no boot logo.
 - `advancedMenu[]` gains the entry `Calibrate100` between `CalibrateCJC` and `VoltageCalibration`, with the handler `setCalibrate100()` and the `draw` callback `displayCalibrate100()`, and the entry `DebugPages`, whose handler is `setOpenDebugPages()`. Neither entry is bound to a setting (`SettingsOptions::SettingsOptionsLength`), so the card menu runs the handler on OK.
 
 The global `bool hs02DebugPagesRequested` (initially false) carries the request from `setOpenDebugPages()` to `cardHandleButtons()` in `SettingsMenu.cpp`.
@@ -362,7 +362,7 @@ These upstream `draw` callbacks keep their behaviour in other builds. In the car
 | `static void displayDisplayRotation(void)` | word ("Right", "Left", "Auto") |
 | `static void displayScrollSpeed(void)` | word ("Fast", "Slow") |
 | `static void displayAnimationSpeed(void)` | Off, word ("Slow", "Medium", "Fast") |
-| `static void displayLogoTime(void)` | Off |
+| `static void displayLogoTime(void)` | Off. Not compiled with `HS02_THEME_CARD`: the `LOGOTime` entry is left out of `UIMenu[]` there, because the card theme shows no boot logo. |
 | `static void displayPowerLimit(void)` | Off |
 | `static void displayPowerPulse(void)` | Off |
 | `static void displayReverseButtonSettings(void)` | Not compiled in the card theme, together with its menu entry. |
@@ -432,7 +432,7 @@ The file-level static `hs02SetTempSaveAt` holds the tick at which a changed set 
 
 #### `void hs02StepSetTemperature(bool up, bool large)`
 
-New. Changes the `SolderingTemp` setting by one step up (`up` true) or down. With `large` false the step is the `TempChangeShortStep` setting, but at least 5; with `large` true it is the `TempChangeLongStep` setting, but at least 10. The result is the next multiple of the step in that direction, limited to `MIN_TEMP_C` to `MAX_TEMP_C`, or the °F limits when `TemperatureInF` is set. The value and the step are in the selected unit. It does not write to flash; it sets `hs02SetTempSaveAt` to two seconds from now. Called with `large` false by `handleHomeButtons()` and by `handleSolderingButtons()` (`Soldering.cpp`) on a short UP or DOWN press, and with `large` true by `handleSolderingButtons()` for each step of a held UP or DOWN.
+New. Changes the `SolderingTemp` setting by one step up (`up` true) or down. With `large` false the step is the `TempChangeShortStep` setting; with `large` true it is the `TempChangeLongStep` setting. Both are used as set (the fork's default for the short step is 5, upstream's is 1). The result is the next multiple of the step in that direction, limited to `MIN_TEMP_C` to `MAX_TEMP_C`, or the °F limits when `TemperatureInF` is set. The value and the step are in the selected unit. It does not write to flash; it sets `hs02SetTempSaveAt` to two seconds from now. Called with `large` false by `handleHomeButtons()` and by `handleSolderingButtons()` (`Soldering.cpp`) on a short UP or DOWN press, and with `large` true by `handleSolderingButtons()` for each step of a held UP or DOWN.
 
 #### `void hs02SaveSetTemperatureIfDue(bool now)`
 

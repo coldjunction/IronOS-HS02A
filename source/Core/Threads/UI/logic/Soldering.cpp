@@ -69,8 +69,8 @@ OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt)
   // otherwise we are unlocked
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
   // Card theme, to match the home screen:
-  //   UP / DOWN short   target up / down by one small step (5 C unless set larger)
-  //   UP / DOWN held    target up / down by the large step (10 C unless set larger), repeating,
+  //   UP / DOWN short   target up / down by the "Temp change short" setting
+  //   UP / DOWN held    target up / down by the "Temp change long" setting, repeating,
   //                     faster the longer it is held: the settings menu's pacing. The number
   //                     changes on this screen; no other screen opens.
   //   OK short          stop heating, back to the home screen

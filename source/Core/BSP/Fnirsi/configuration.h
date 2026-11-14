@@ -105,7 +105,7 @@
 /**
  * Temp change settings
  */
-#define TEMP_CHANGE_SHORT_STEP     1  // Default temp change short step +1
+#define TEMP_CHANGE_SHORT_STEP     5  // Default step of a press of UP / DOWN on the home and heating screens (the port: 1)
 #define TEMP_CHANGE_LONG_STEP      10 // Default temp change long step +10
 #define TEMP_CHANGE_SHORT_STEP_MAX 50 // Temp change short step MAX value
 #define TEMP_CHANGE_LONG_STEP_MAX  90 // Temp change long step MAX value

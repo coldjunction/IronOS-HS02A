@@ -61,10 +61,10 @@ The three buttons, left to right as you hold the iron with the screen facing you
 
 | Action | Result |
 |---|---|
-| Press Up / Down | Target temperature up / down to the next step (5 degrees unless "Temp change short" is larger). Saved two seconds later. |
+| Press Up / Down | Target temperature up / down by "Temp change short" (default 5 degrees). Saved two seconds later. |
 | Press OK | Start heating |
 | Hold Up | Open the settings menu |
-| Hold Down | Target down by "Temp change long" (10 degrees unless set larger), repeating, faster the longer it is held |
+| Hold Down | Target down by "Temp change long" (default 10 degrees), repeating, faster the longer it is held |
 | Hold Up and Down together | Play a tune (see [Tunes](#tunes)) |
 
 ### Heating screen
@@ -72,7 +72,7 @@ The three buttons, left to right as you hold the iron with the screen facing you
 | Action | Result |
 |---|---|
 | Press Up / Down | Target temperature up / down to the next step, as on the ready screen |
-| Hold Up or Down | Target up / down by "Temp change long" (10 degrees unless set larger), repeating, faster the longer it is held. The number changes on this screen. |
+| Hold Up or Down | Target up / down by "Temp change long" (default 10 degrees), repeating, faster the longer it is held. The number changes on this screen. |
 | Press OK | Stop heating and go back to the ready screen |
 | Hold OK | Boost: heat to the boost temperature for as long as the button is held |
 | Hold Up and Down together | Lock or unlock the buttons, if "Allow locking buttons" is on |
@@ -155,8 +155,8 @@ hall sensor support.
 |---|---|
 | Boost temp | The boost target, or "Off". Press for 1 degree, hold for steps of 10. |
 | Start-up behavior | What the iron does when plugged in: wait on the ready screen, heat at once, or start in sleep with or without heating. |
-| Temp change short | Step of a press of Up or Down on the ready and heating screens. Values under 5 count as 5. |
-| Temp change long | Step of a held Up or Down on the ready and heating screens. Values under 10 count as 10. |
+| Temp change short | Step of a press of Up or Down on the ready and heating screens, 1 to 50 degrees (default 5). |
+| Temp change long | Step of a held Up or Down on the ready and heating screens, 5 to 90 degrees in fives (default 10). |
 | Allow locking buttons | Off, boost only (locked buttons still allow boost), or full. |
 
 ### Sleep mode
@@ -180,14 +180,13 @@ hall sensor support.
 | Anim. speed, Anim. loop | From IronOS, for menu icon animations. The HS-02 menu has no icons, so they have no effect. |
 | Screen brightness | Backlight level. |
 | Invert screen | Inverts the display colours. |
-| Boot logo duration | Has no effect in the card theme, which shows no boot logo. |
 | Detailed idle screen, Detailed solder screen | From IronOS. The HS-02 colour screens do not have a detailed variant, so they have no effect on the ready screen. |
 | Buzzer beep (new) | The beep at target temperature, and the tunes. |
 | Button light (new) | Brightness of the white light behind the Down and Up buttons: Off, or 1 (dim) to 10 (full). |
 | Ready / Heating / Boost / Sleep / Menu colour (new) | Accent colour of that screen: Auto (the theme's own colour) or blue, green, red, orange, yellow, purple, pink, white. |
 
-"Swap A B keys" from the port is not in the card theme menu, because the card menu has a
-fixed button layout.
+"Swap A B keys" and "Boot logo duration" from the port are not in the menu: the card menu has
+a fixed button layout, and there is no boot logo.
 
 ### Advanced settings
 
