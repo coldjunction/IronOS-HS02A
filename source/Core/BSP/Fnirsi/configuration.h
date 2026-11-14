@@ -261,6 +261,20 @@
 #define TIP_PID_INTEGRAL_ZONE        30
 #define TIP_PID_INTEGRAL_MAX_RATE    8
 #define TIP_PID_INPUT_SCALE          10
+// Hold gains (see PIDThread.cpp): once the tip has sat within 3 C of the set point for a
+// second, the proportional gain goes to 40 (4 W per degree C, the port's value) and the
+// derivative gain to 8000 (the port's as well). The gains above remain the ones for heating
+// up. In the simulator, against the gains above used throughout: the same heat-up overshoot
+// (2 to 3 C on the tip models that match the measured iron), a calmer idle (heater power
+// swinging by 6 W instead of 9 W), a slightly smaller dip on a heavy joint (the heater is at
+// its limit there either way) and a smaller rebound after it (8 C instead of 11 C). With 40
+// used throughout, the same models overshoot a heat-up by 20 to 55 C, or oscillate when
+// damped harder. Not yet measured on the iron.
+#define TIP_PID_KP_HOLD        40
+#define TIP_PID_KD_HOLD        8000
+#define TIP_PID_HOLD_ARRIVE    3    // degrees C
+#define TIP_PID_HOLD_SETTLE_MS 1000
+#define TIP_PID_HOLD_LEAVE     40   // degrees C
 
 /// Default Control if no other controller is defined
 #define TIP_THERMAL_MASS        0    // Not used for PID

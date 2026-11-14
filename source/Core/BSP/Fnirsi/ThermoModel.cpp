@@ -63,7 +63,6 @@ uint32_t fallbackTipTempCx10(uint32_t tipuV) {
   //     one HS-02A: 0 uV cold and about 1300 uV at 100 C, so a zero near -700 uV. Without this
   //     correction that iron showed about 40 C in boiling water and, by the same 1.5 mV or so,
   //     far too little at soldering temperatures (the tip hotter than shown).
-  // A CJC offset above 0 is used as it is. With a CJC offset of 0 the 100 C point decides.
   constexpr int32_t kSignalAt100 = 2000;
   constexpr int32_t s223 = 5400, s273 = 6680, s350 = 8370, s400 = 10540, s450 = 12090, s500 = 13640;
 
@@ -71,26 +70,33 @@ uint32_t fallbackTipTempCx10(uint32_t tipuV) {
   const int32_t cal100 = getSettingValue(SettingsOptions::Cal100uV);
   const int32_t input  = (int32_t)tipuV + offset; // the amplifier reading; tipuV has the offset taken off
 
+  // The two calibrations each give a figure for the zero: the CJC offset, and the 100 C reading
+  // minus the signal expected at 100 C. The LOWER of the two is used. A zero that is too low
+  // makes temperatures read high, and the tip is then cooler than shown; a zero that is too
+  // high makes them read low and the controller overheats the tip. The ways a calibration goes
+  // wrong all push its figure up (CJC run on a tip that was still warm, the 100 C reading taken
+  // from a tip hotter than the water), except water that is not boiling, which errs the safe way.
   int32_t zero  = offset;
   int32_t at100 = kSignalAt100; // signal at 100 C
   if (cal100 != 0) {
-    if (offset == 0) {
-      zero = cal100 - kSignalAt100; // may be negative
-    } else if (cal100 > offset && cal100 - offset < s223) {
-      at100 = cal100 - offset; // the zero is known: the 100 C point shapes the low end instead
-                               // (ignored if it would not sit below the 223 C node, which can
-                               // only happen if the CJC offset was changed a lot afterwards)
+    const int32_t zeroFrom100 = cal100 - kSignalAt100; // may be negative
+    if (zeroFrom100 < zero) {
+      zero = zeroFrom100;
+    } else if (cal100 - zero < s223) {
+      at100 = cal100 - zero; // the zero stands: the 100 C reading shapes the low end of the curve instead
     }
   }
 
   int32_t signal = input - zero;
-  if (zero < 0) {
-    // The amplifier cannot go below 0, so readings near 0 only say "no warmer than this".
-    // Rather than jump from 25 C to that limit with the first count, the first 300 uV of
-    // reading run from 25 C up to where the curve is true again.
+  if (zero < offset) {
+    // No reading arrives here below the offset: the amplifier cannot go below 0, and the caller
+    // cuts readings off at the offset. With the zero below that, a reading at the offset only
+    // says "no warmer than this". Rather than show that limit for a cold iron, and jump to it
+    // from 25 C with the first count, the first 300 uV above the offset run from 25 C up to
+    // where the curve is true again.
     constexpr int32_t kBlend = 300;
-    if (input < kBlend) {
-      signal = (input * (kBlend - zero)) / kBlend;
+    if (input < offset + kBlend) {
+      signal = ((input - offset) * (offset + kBlend - zero)) / kBlend;
     }
   }
   if (signal <= 0) {

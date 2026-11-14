@@ -274,6 +274,9 @@ void drawWashHeating(TemperatureType_t current, TemperatureType_t target, uint32
 }
 
 #ifdef HS02_THEME_CARD
+} // namespace
+bool hs02GetFactoryTipCal(uint32_t &a140, uint32_t &a240, uint32_t &a340); // Core/BSP/Fnirsi/ThermoModel.cpp
+namespace {
 // ---- Card theme ---------------------------------------------------------------------------
 // Each page still has only four colours: background, white, one accent, grey.
 constexpr uint16_t kCardReadyPalette[4]  = {0x0042, 0xFFFF, 0x262B, 0x9D37}; // green
@@ -443,7 +446,15 @@ void drawCardIdle(TemperatureType_t tipTemp) {
   // the caller passes degrees C; the target beside it is in the unit the user chose
   drawCardTemperature(cardSteadyTemperature(getSettingValue(SettingsOptions::TemperatureInF) ? TipThermoModel::getTipInF() : tipTemp));
   drawCardTarget(Hs02WashFont::kLabels.set, getSettingValue(SettingsOptions::SolderingTemp));
-  drawCardPowerBar(0);
+  // Without a 100 C point the amplifier's zero is a guess, and the reading can be tens of
+  // degrees off (see ThermoModel.cpp): say so, where the idle power bar would be. Irons that
+  // carry the stock firmware's factory calibration do not need it.
+  uint32_t factory140 = 0, factory240 = 0, factory340 = 0;
+  if (getSettingValue(SettingsOptions::Cal100uV) == 0 && !hs02GetFactoryTipCal(factory140, factory240, factory340)) {
+    drawWashText("NO CAL", kCardBarX, 61, kMuted);
+  } else {
+    drawCardPowerBar(0);
+  }
   drawCardVoltage();
   drawCardFooter(0, 'W'); // the heater is off on this screen
 }

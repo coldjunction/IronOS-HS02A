@@ -202,6 +202,7 @@ static OperatingMode cardHandleButtons(const ButtonState buttons, guiContext *cx
     cxt->scratch_state.state5 = 0;
     if (*editing) {
       *editing = 0;
+      saveSettings(); // the hint says "save": do not wait until the menu is left
     } else if (cardItemHasValue(cxt, item)) {
       *editing = 1;
     } else if (item->incrementHandler != nullptr) {

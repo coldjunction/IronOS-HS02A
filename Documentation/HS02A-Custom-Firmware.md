@@ -161,7 +161,7 @@ hall sensor support.
 
 | Entry | What it does |
 |---|---|
-| Motion sensitivity | How easily movement wakes the iron, 1 to 9. "Off" disables sleep and hides the two entries below. |
+| Motion sensitivity | How easily movement wakes the iron, 1 to 9. "Off" disables sleep and hides the three entries below. |
 | Sleep temp | Tip temperature while sleeping. Press for 1 degree, hold for steps of 10. |
 | Sleep timeout | Time without movement before sleep. |
 | Shutdown timeout | Time without movement before heating stops. |
@@ -250,16 +250,29 @@ The screen then shows "100C saved at" and the reading in microvolts. Whatever th
 stored: the firmware does not judge whether it looks like 100 °C, because that reading is the
 thing being measured and it differs a lot between irons. So the water has to be at a real
 rolling boil; a calibration in merely hot water is stored just the same and makes the tip run
-cooler than shown. The only refusal is "No usable reading", when there is no signal at all
-(the tip is not in anything hot) or the reading is above what the setting can hold. The menu entry shows
+cooler than shown. "No usable reading" appears in two cases: there is no signal at all (the
+tip is not in anything hot), or the reading is higher than a tip at 100 °C can give, which
+means the tip is hotter than the water, for example still hot from use. That second case is
+refused because it is the dangerous one: it would make the iron read low and overheat the tip. The menu entry shows
 a tick once a point is stored. Running it again replaces the stored point.
 
 A tip that has been in water should be dried afterwards. Dipping a cold tip in hot water does
 it no harm; what damages tips is plunging a hot one into water.
 
+### If the two steps disagree
+
+Each step gives the firmware a figure for the amplifier's zero, and it uses the lower one.
+That is the cautious choice: a zero that is too low makes the iron read a little high, so the
+tip is cooler than shown, while one that is too high makes the tip hotter than shown. The
+mistakes that are easy to make (calibrating CJC with a tip that is still warm, or the 100 °C
+step with a tip hotter than the water) all push a figure up, so the other step covers for
+them. Water that is not really boiling is the one mistake that goes the other way, and it
+errs on the safe side.
+
 ### Checking the result
 
-- A cold iron shows 25 °C, and the tip in boiling water shows about 100 °C.
+- A cold iron shows 25 °C, and the tip in boiling water shows about 100 °C. The words "NO CAL"
+  on the ready screen, shown until a 100 °C point is stored, are gone.
 - Put a drop of water on the tip. At a set 100 °C it should sit there and dry slowly; at about
   105 to 110 °C it should hiss and boil off.
 - For soldering temperatures, melt a solder joint: leaded solder melts at 183 °C, lead-free at
@@ -269,7 +282,7 @@ it no harm; what damages tips is plunging a hot one into water.
 
 - **It is an estimate above 100 °C.** The 100 °C point fixes that reading and shifts the rest of
   the curve by the zero it finds. The curve's shape above that comes from one other iron. Expect
-  it to be within about 15 °C at soldering temperatures until checked against solder.
+  it to be within 15 to 20 °C at soldering temperatures until checked against solder.
 - **It assumes water boils at 100 °C.** It boils about 1 °C lower for every 300 m above sea level.
 - **It cannot show less than 25 °C.** The sensor only measures how much hotter the tip is than
   the handle end, and the handle end is assumed to be at 25 °C. A tip colder than the handle
@@ -328,6 +341,11 @@ temperature under load but overshoot on heat-up. The hybrid profile was tuned in
 firmware's integer PID, then corrected against overshoot measured on the real iron. It feeds
 the PID tenths of a degree, lets the integral act only within 30 °C of the target and only
 while the tip is approaching slowly, and uses a stronger derivative term.
+
+It works in two stages. While heating up it reacts gently (2 W per degree of error), which
+keeps the overshoot small. Once the tip has sat at the target for a second it switches to the
+port's stronger reaction (4 W per degree), so a joint that draws heat is answered harder. It
+goes back to the gentle stage when the target changes or the tip is more than 40 °C away.
 
 The simulator's tip model is assumed, not measured, and it was calibrated against one iron and
 one tip shape. Treat its numbers as estimates.

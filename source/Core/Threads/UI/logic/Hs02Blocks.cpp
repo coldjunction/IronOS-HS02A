@@ -267,7 +267,7 @@ void drawChanges(bool scoreVisible) {
     shownScoreVisible = scoreVisible;
     block(4, 3, 36, 15, kColours[0]);
     if (scoreVisible) {
-      drawNumber(score, 4, 3);
+      drawNumber(score > 999 ? 999 : score, 4, 3); // three digits
     }
   }
   if (nextShape != shownNext) { // the piece that comes next, small, top right
@@ -357,8 +357,8 @@ OperatingMode hs02BlocksFrame(const ButtonState buttons, guiContext *cxt) {
   // OK: a quarter turn when it goes down
   if (ok && !wasOk) {
     const Shape  candidate = turned(piece);
-    const int8_t nudges[]  = {0, -1, 1, -2};
-    for (uint8_t i = 0; i < 4; i++) {
+    const int8_t nudges[]  = {0, -1, 1, -2, -3}; // -3: a bar of four standing against the right wall
+    for (uint8_t i = 0; i < 5; i++) {
       if (fits(candidate, pieceX + nudges[i], pieceY)) {
         piece = candidate;
         pieceX += nudges[i];

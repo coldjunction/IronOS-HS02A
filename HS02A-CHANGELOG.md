@@ -3,6 +3,25 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 51
+
+- **Two-stage temperature control.** Heating up uses the gentle setting as before (2 W per
+  degree of error). Once the tip has sat at the target for a second, the controller switches to
+  the port's stronger reaction, 4 W per degree, so a joint that draws heat is answered harder.
+  In the simulator this keeps the heat-up overshoot where it was, makes the idle calmer and
+  the rebound after a heavy joint smaller. Using 4 W per degree throughout overshot badly in
+  the same simulator. Not yet measured on the iron.
+- **The lower of the two calibrations' zero figures is used.** A CJC calibration run on a tip
+  that was still warm used to shift every temperature and make the tip up to about 30 °C
+  hotter than shown. The 100 °C calibration now corrects that, and the other way round.
+- **"NO CAL" on the ready screen** until a 100 °C point is stored (not on irons with a factory
+  calibration).
+- **Fixed: a value changed in the menu was only saved when the menu was left.** Pressing OK to
+  end editing now saves it, as the hint says.
+- **"Calibrate at 100C" refuses a reading that is too high.** A low reading is still stored as
+  it is. A reading more than 3000 µV above the zero can only come from a tip hotter than the
+  water, and storing it would make the iron read low and overheat the tip, so it is refused.
+
 ## Build 50
 
 - **Ready screen: hold OK for the settings, hold Up to raise the target.** Holding Up used to

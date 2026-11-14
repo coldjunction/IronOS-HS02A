@@ -999,13 +999,16 @@ static void setOpenBlocks(void) { hs02BlocksRequested = true; }
 // 223 C. This stores one: the tip amplifier's reading while the tip is held in boiling water,
 // with the heater off (it is off everywhere in the menu). Water boils about 1 C lower for every
 // 300 m above sea level; 100 C is assumed.
-// Any reading that carries a signal is stored: what an iron reads at 100 C is the thing being
-// measured, and it differs too much between irons to be second-guessed (the curves put it at
-// roughly 1700 to 2400 uV; the first real HS-02A tried read 1300). Two readings are refused
-// because they cannot be used: one within 50 uV of the zero reading (a few ADC counts: the tip
-// is not in anything hot, or the amplifier is still at its lower limit), and one above 6000 uV,
-// the most the Cal100uV setting holds.
-constexpr uint32_t kCal100MinAboveZerouV = 50, kCal100MaxuV = 6000;
+// What an iron reads at 100 C is the thing being measured, and it differs too much between
+// irons to be second-guessed from below (the curves put it at roughly 1700 to 2400 uV; the
+// first real HS-02A tried read 1300). So a low reading is taken as it is, down to 50 uV above
+// the zero reading (a few ADC counts: less than that is no signal at all).
+// From above there is a limit, because a reading that is too high is the dangerous kind. It
+// can only mean the tip is hotter than the water (still hot from use, say), and storing it
+// makes every temperature read low afterwards, so the controller overheats the tip: with a
+// reading of 4500 uV stored, a set 350 C would be about 410 C. A tip at 100 C gives about
+// 2000 uV above the zero; up to 3000 is accepted. Nothing above 6000 fits the setting.
+constexpr uint32_t kCal100MinAboveZerouV = 50, kCal100MaxAboveZerouV = 3000, kCal100MaxuV = 6000;
 
 // A screen of small-font rows, 16 pixels apart; with a question, "no / no / yes" under it in
 // button order (DOWN, UP, OK).
@@ -1054,7 +1057,7 @@ static void setCalibrate100(void) {
   }
   const uint32_t readinguV = TipThermoModel::convertTipRawADCTouV(sum / 16, true);
   const uint32_t zerouV    = getSettingValue(SettingsOptions::CalibrationOffset);
-  const bool plausible = readinguV >= zerouV + kCal100MinAboveZerouV && readinguV <= kCal100MaxuV;
+  const bool plausible = readinguV >= zerouV + kCal100MinAboveZerouV && readinguV <= zerouV + kCal100MaxAboveZerouV && readinguV <= kCal100MaxuV;
   if (plausible) {
     setSettingValue(SettingsOptions::Cal100uV, (uint16_t)readinguV);
     saveSettings();

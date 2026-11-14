@@ -168,22 +168,58 @@ void startPIDTask(void const *argument __unused) {
 #ifndef TIP_PID_INTEGRAL_MAX_RATE
 #define TIP_PID_INTEGRAL_MAX_RATE 0
 #endif
+// Optional second set of gains for holding the temperature (TIP_PID_KP_HOLD, TIP_PID_KD_HOLD).
+// The template's Kp and Kd are then the "approach" gains, used while heating up to a set point.
+// The hold gains take over once the reading has stayed within TIP_PID_HOLD_ARRIVE degrees C of
+// the set point for TIP_PID_HOLD_SETTLE_MS, and the approach gains come back when the set point
+// changes or the reading is more than TIP_PID_HOLD_LEAVE degrees C away from it.
+// Why two: a high proportional gain pulls the tip back faster when a joint draws heat, but
+// during a heat-up, with a sensor that lags the heater, it overshoots.
 template <class T, T Kp, T Ki, T Kd, T integral_limit_scale> struct PID {
   T previous_error_term;
   T integration_running_sum;
+#ifdef TIP_PID_KP_HOLD
+  T        hold_set_point; // the set point the hold state below belongs to
+  uint32_t in_band_ms;     // how long the reading has been within the arrive band
+  bool     holding;
+#endif
 
   T update(const T set_point, const T new_reading, const TickType_t interval_ms, const T max_output) {
     const T target_delta = set_point - new_reading;
 
     // Proportional term
-    const T kp_result = (Kp * target_delta) / TIP_PID_INPUT_SCALE;
+#ifdef TIP_PID_KP_HOLD
+    {
+      const T away = target_delta < 0 ? -target_delta : target_delta;
+      if (set_point != hold_set_point) {
+        hold_set_point = set_point;
+        holding        = false;
+        in_band_ms     = 0;
+      }
+      in_band_ms = (away <= (T)(TIP_PID_HOLD_ARRIVE)*TIP_PID_INPUT_SCALE) ? in_band_ms + interval_ms : 0;
+      if (in_band_ms > 60000) {
+        in_band_ms = 60000; // it only has to reach the settle time, not count for ever
+      }
+      if (!holding && in_band_ms >= TIP_PID_HOLD_SETTLE_MS) {
+        holding = true;
+      } else if (holding && away > (T)(TIP_PID_HOLD_LEAVE)*TIP_PID_INPUT_SCALE) {
+        holding = false;
+      }
+    }
+    const T kp_now = holding ? (T)(TIP_PID_KP_HOLD) : Kp;
+    const T kd_now = holding ? (T)(TIP_PID_KD_HOLD) : Kd;
+#else
+    const T kp_now = Kp;
+    const T kd_now = Kd;
+#endif
+    const T kp_result = (kp_now * target_delta) / TIP_PID_INPUT_SCALE;
 
     // Calculate the integral term, we use a shift 100 to get precision in integral as we often need small amounts
     T ki_result = integration_running_sum / 100;
 
     // Derivative term
     T derivative = (target_delta - previous_error_term);
-    T kd_result  = ((Kd * derivative) / ((T)(interval_ms)*TIP_PID_INPUT_SCALE));
+    T kd_result  = ((kd_now * derivative) / ((T)(interval_ms)*TIP_PID_INPUT_SCALE));
 
     // Summation of the outputs
     T output = kp_result + ki_result + kd_result;
@@ -307,7 +343,7 @@ int32_t getPIDResultX10Watts(TemperatureType_t set_point, TemperatureType_t curr
   static TickType_t lastCall = 0;
 
 #if defined(TIP_CONTROL_PID)
-  static PID<TemperatureType_t, TIP_PID_KP, TIP_PID_KI, TIP_PID_KD, TIP_PID_INTEGRAL_LIMIT_SCALE> ctrl     = {0, 0};
+  static PID<TemperatureType_t, TIP_PID_KP, TIP_PID_KI, TIP_PID_KD, TIP_PID_INTEGRAL_LIMIT_SCALE> ctrl     = {}; // all members zero
   const TickType_t                                                                                interval = (xTaskGetTickCount() - lastCall);
 
 #elif defined(TIP_CONTROL_ARDC1)

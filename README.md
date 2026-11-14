@@ -91,7 +91,8 @@ development iron ran about 50 °C hotter than it showed.
    **Advanced settings → Calibrate at 100C**, hold the front 2 cm of the tip in the water for
    30 seconds, press OK, and keep it there while "Measuring" shows. The heater stays off; do
    not heat the iron in the water.
-3. **Check it.** A cold iron shows 25 °C and the tip in boiling water about 100 °C. A drop of
+3. **Check it.** The words "NO CAL" on the ready screen are gone, a cold iron shows 25 °C and
+   the tip in boiling water about 100 °C. A drop of
    water on the tip sits still at a set 100 °C and boils off at about 105 °C.
 
 The iron cannot show less than 25 °C: its sensor measures how much hotter the tip is than the
