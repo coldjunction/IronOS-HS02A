@@ -27,6 +27,58 @@ This fork is a set of changes on top of other people's work. Nearly all of the f
 If you want a maintained HS-02 firmware, use the port linked above. If something here is
 useful to it, it is free to take under the same licence.
 
+## Controls
+
+The iron has three buttons. Left to right with the screen facing you: **Down**, **Up**, **OK**.
+You can try all of this in the [browser demo](https://claudiotnt.github.io/IronOS-HS02A/demo/).
+
+### Flashing the firmware
+
+1. Unplug the iron.
+2. Hold **OK** and plug the iron into a computer with a USB-C cable. A drive named `BOOTLOADER` appears.
+3. Copy the `.bin` file from the [latest release](../../releases/latest) onto that drive. The iron restarts with the new firmware.
+
+### Ready screen (after plugging in)
+
+| To do this | Do this |
+|---|---|
+| Start heating | Press **OK** |
+| Change the target temperature | Press **Up** or **Down** |
+| Lower the target quickly | Hold **Down** |
+| Open the settings | Hold **Up** |
+
+### Heating screen
+
+| To do this | Do this |
+|---|---|
+| Change the target temperature | Press **Up** or **Down** |
+| Change it quickly | Hold **Up** or **Down** |
+| Boost (hotter for one big joint) | Hold **OK** for as long as you need it |
+| Stop heating | Press **OK** |
+
+### Settings
+
+| To do this | Do this |
+|---|---|
+| Move through the entries | **Down** for the next one, **Up** for the previous one |
+| Open a group, or start changing a value | Press **OK** |
+| Change the value | **Down** for less, **Up** for more (hold to repeat) |
+| Save the value | Press **OK** |
+| Go back one level, or leave the settings | Hold **OK** |
+
+The bottom row of the settings screen always shows what the three buttons do at that moment.
+
+### The screens
+
+- **Ready:** the iron is plugged in and not heating.
+- **Heating:** the tip is heating to the target. The bar along the bottom is heater power.
+- **Boost:** the same, while OK is held, heating to the boost temperature.
+- **Sleep:** the iron has not moved for a while and has dropped to the sleep temperature. Move it or press a button to wake it.
+- **No tip:** no tip is fitted.
+
+Every screen shows the tip temperature (large), the supply voltage (top right) and the heater power in watts (bottom right).
+The [user guide](Documentation/HS02A-Custom-Firmware.md) covers every menu entry.
+
 ## What is different from the port
 
 - **PID retuned for less overshoot.** Tuned in a simulator and against measurements on the
