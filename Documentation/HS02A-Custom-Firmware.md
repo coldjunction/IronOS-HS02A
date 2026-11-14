@@ -28,10 +28,9 @@ bugparty. This fork is a set of changes on top of their work.
 6. [Settings menu, entry by entry](#settings-menu-entry-by-entry)
 7. [Calibrating the temperature](#calibrating-the-temperature)
 8. [Debug pages](#debug-pages)
-9. [Tunes](#tunes) and the [Super High Intensity Block Simulator](#super-high-intensity-block-simulator)
-10. [Power supplies](#power-supplies)
-11. [Building from source](#building-from-source)
-12. [How the PID was tuned](#how-the-pid-was-tuned)
+9. [Power supplies](#power-supplies)
+10. [Building from source](#building-from-source)
+11. [How the PID was tuned](#how-the-pid-was-tuned)
 
 ## Which file to flash
 
@@ -65,7 +64,6 @@ The three buttons, left to right as you hold the iron with the screen facing you
 | Press OK | Start heating |
 | Hold Up or Down | Target up / down by "Temp change long" (default 10 degrees), repeating, faster the longer it is held |
 | Hold OK | Open the settings menu |
-| Hold Up and Down together for 5 seconds | Play a tune (see [Tunes](#tunes)) |
 
 ### Heating screen
 
@@ -181,7 +179,7 @@ hall sensor support.
 | Screen brightness | Backlight level, 1 (dim) to 10 (full). |
 | Invert screen | Inverts the display colours. |
 | Detailed idle screen, Detailed solder screen | From IronOS. The HS-02 colour screens do not have a detailed variant, so they have no effect on the ready screen. |
-| Buzzer beep (new) | The beep at target temperature, and the tunes. |
+| Buzzer beep (new) | The beep when the tip reaches the target temperature. |
 | Button light (new) | Brightness of the white light behind the Down and Up buttons: Off, or 1 (dim) to 10 (full). |
 | Ready / Heating / Boost / Sleep / Menu colour (new) | Accent colour of that screen: Auto (the theme's own colour) or blue, green, red, orange, yellow, purple, pink, white. |
 
@@ -201,7 +199,6 @@ a fixed button layout, and there is no boot logo.
 | Power pulse duration | Length of a pulse, in steps of 250 ms. |
 | Restore default settings | Resets every setting, including the CJC calibration. |
 | Debug pages (new) | Opens the [debug pages](#debug-pages). |
-| Super High Intensity Block Simulator (new) | Opens the [game](#super-high-intensity-block-simulator). |
 
 ## Calibrating the temperature
 
@@ -294,45 +291,6 @@ Open them from **Advanced settings → Debug pages**. Down goes to the next page
   own temperature) and `pwr` (heater power).
 
 The standard IronOS pages follow. The first of them shows the build number of this fork.
-
-## Tunes
-
-On the ready screen, hold Up and Down together for five seconds: the buzzer plays a tune. The
-first time after plugging in it is "La Cucaracha"; each further time it is the next of four:
-"La Cucaracha", "Korobeiniki" (a Russian folk song), the opening of Beethoven's "Ode to Joy"
-and the opening of Grieg's "In the Hall of the Mountain King". Any button stops a tune. All
-four are in the public domain. The tunes are silent when "Buzzer beep" is off.
-
-The buzzer can sound one pitch at a time, so melodies and beeps are what it can do; it cannot
-play chords, speech or recorded sound.
-
-To change a tune, edit the note tables in
-`source/Core/Threads/UI/logic/utils/Hs02Tune.cpp`: each entry is a pitch in Hz and a length in
-milliseconds.
-
-## Super High Intensity Block Simulator
-
-**Advanced settings → Super High Intensity Block Simulator** opens a small falling-block game.
-Hold the iron upright with the tip pointing down: the screen is used on its side, and the
-pieces fall towards the tip. The heater is off.
-
-Pieces of two to four squares fall into a field 8 squares wide and 15 high. A full row
-disappears and scores a point, and the pieces fall faster as the score grows. The game ends
-when a new piece has no room.
-
-| Action | Result |
-|---|---|
-| Up | Piece one square to the left (hold to repeat) |
-| Down | Piece one square to the right (hold to repeat) |
-| Press OK | Turn the piece a quarter |
-| Hold OK for a second | Leave the game |
-| OK after the game has ended | Play again |
-
-Each of the eight shapes has its own colour. The score is at the top left and the next piece
-at the top right.
-
-With "Buzzer beep" on, "In the Hall of the Mountain King" plays while you play and speeds up
-with the score, and losing is marked by a sad horn. With it off the game is silent.
 
 ## Power supplies
 

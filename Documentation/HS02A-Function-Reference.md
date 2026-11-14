@@ -2,6 +2,8 @@
 
 This document lists every function, method, compile-time switch, tuning constant and setting that this fork adds to or changes in the bugparty/IronOS port for the FNIRSI HS-02A (upstream commit `93da587`). It describes only what differs from upstream; untouched upstream functions appear only where a changed function cannot be understood without naming its caller. Each description follows the current source and its comments.
 
+A few small extras in the firmware are deliberately not described here.
+
 Terms used below:
 
 - **Card theme**: this fork's screens and menus, the code guarded by `HS02_THEME_CARD`. The Makefile defines `HS02_THEME_CARD` for every HS02 build (see "Build switches"), so this code is always compiled.
@@ -18,7 +20,7 @@ One firmware is built. `source/Makefile` adds `-DHS02_THEME_CARD` to `GLOBAL_DEF
 
 | Define | Set by | What it selects |
 | --- | --- | --- |
-| `HS02_THEME_CARD` | `source/Makefile`, for every HS02 build | The card theme: card-style home, soldering and sleep screens (`draw_home_gauge.cpp`), a three-row settings menu with a button hint row (`SettingsMenu.cpp`, `settingsGUI.cpp`), coloured output of mono screens and a partial menu slide (`LCD.hpp`, `LCD.cpp`, `Display.cpp`), no boot logo (`BSP.cpp`, `GUIThread.cpp`), the home screen and soldering screen button layouts and the buzzer tunes (`HomeScreen.cpp`, `Soldering.cpp`, `Hs02Tune.cpp`), the HS-02 debug pages shown first (`DebugMenu.cpp`), a larger GUI task stack (`main.cpp`), `BUZZER_VOLUME` 6 and `TEMP_CHANGE_SWAP_DEFAULT` 1. Most uses are combined with `LCD_160x80` or `MODEL_HS02`. |
+| `HS02_THEME_CARD` | `source/Makefile`, for every HS02 build | The card theme: card-style home, soldering and sleep screens (`draw_home_gauge.cpp`), a three-row settings menu with a button hint row (`SettingsMenu.cpp`, `settingsGUI.cpp`), coloured output of mono screens and a partial menu slide (`LCD.hpp`, `LCD.cpp`, `Display.cpp`), no boot logo (`BSP.cpp`, `GUIThread.cpp`), the home screen and soldering screen button layouts (`HomeScreen.cpp`, `Soldering.cpp`), the HS-02 debug pages shown first (`DebugMenu.cpp`), a larger GUI task stack (`main.cpp`), `BUZZER_VOLUME` 6 and `TEMP_CHANGE_SWAP_DEFAULT` 1. Most uses are combined with `LCD_160x80` or `MODEL_HS02`. |
 
 The port's own layout (the "wash" screens) is still in the source, in the branches that are compiled when `HS02_THEME_CARD` is not defined. It is not built, and the comment in `configuration.h` calls it untested in this fork. This document describes the code that is built; where it says "in the card theme" or "with `HS02_THEME_CARD`", it names the guard around that code.
 
@@ -72,7 +74,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 
 | No. | Name | Range | Default | Meaning | Read by |
 | --- | --- | --- | --- | --- | --- |
-| 56 | `BuzzerEnabled` | 0–1 | 1 | 1 lets the buzzer sound. | `setBuzzer()`, `setBuzzerTone()` (`BSP.cpp`), `hs02TuneStart()` (`Hs02Tune.cpp`), `displayBuzzerEnabled()` |
+| 56 | `BuzzerEnabled` | 0–1 | 1 | 1 lets the buzzer sound. | `setBuzzer()`, `setBuzzerTone()` (`BSP.cpp`), `displayBuzzerEnabled()` |
 | 57 | `ColourReady` | 0–8 | 0 | Accent colour of the home screen while idle. | `drawCardIdle()` through `cardPaletteFor()`, `displayColourReady()` |
 | 58 | `ColourHeating` | 0–8 | 0 | Accent colour of the soldering screen. | `drawCardSoldering()`, `displayColourHeating()` |
 | 59 | `ColourBoost` | 0–8 | 0 | Accent colour of the soldering screen while boosting. | `drawCardSoldering()`, `displayColourBoost()` |
@@ -120,7 +122,7 @@ Changed. Sets the TIM2 compare value to `BUZZER_VOLUME` when `on` is true and to
 
 #### `void setBuzzerTone(uint16_t hz)`
 
-New. Sounds the buzzer at a pitch given in Hz by changing the period of TIM2. A value below 100, or `BuzzerEnabled` being 0, silences the buzzer and restores the period 127 that `setBuzzer()` expects. Otherwise the period is `256000 / hz` timer ticks, the counter is reset, and the compare value is `period * BUZZER_VOLUME / 128`. The comment notes that the 256 kHz tick rate is taken from `Setup.cpp`, and that every tone sounds an octave lower if the timer clock is really half that. Called from `Hs02Tune.cpp`.
+New. Sounds the buzzer at a pitch given in Hz by changing the period of TIM2. A value below 100, or `BuzzerEnabled` being 0, silences the buzzer and restores the period 127 that `setBuzzer()` expects. Otherwise the period is `256000 / hz` timer ticks, the counter is reset, and the compare value is `period * BUZZER_VOLUME / 128`. The comment notes that the 256 kHz tick rate is taken from `Setup.cpp`, and that every tone sounds an octave lower if the timer clock is really half that.
 
 #### `void showBootLogo(void)`
 
@@ -260,7 +262,6 @@ Changed. Draws one frame of the current operating mode and returns the mode to s
 Changed. Runs one GUI frame: draw, mode change, transition, refresh. The fork added:
 
 - With `MODEL_HS02`: calls to `hs02CurrentSenseSample()` and `hs02ApplyButtonLight()` at the start of every frame.
-- With `MODEL_HS02` and `HS02_THEME_CARD`: a call to `hs02TuneStop()` whenever the current mode is not `HomeScreen`, then a call to `hs02TuneTick()`.
 - With `LCD_160x80` and `HS02_THEME_CARD`: after the frame has been sent, the first time the current mode is a colour screen (home, soldering, sleeping, hibernating) and the frame was not the startup logo step, it sets the backlight to the `DisplayBrightness` setting. The static `backlightRevealed` makes this happen once.
 
 Called from the loop in `startGUITask()`.
@@ -427,7 +428,7 @@ Changed. The settings menu's per-frame function, called by `guiHandleDraw()` in 
 
 ## `source/Core/Threads/UI/logic/HomeScreen.cpp`
 
-The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen buttons are: UP or DOWN short changes the set temperature, UP or DOWN held changes it in large steps on the spot, OK starts soldering, OK held opens the settings menu, and UP and DOWN held together plays a tune.
+The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen buttons are: UP or DOWN short changes the set temperature, UP or DOWN held changes it in large steps on the spot, OK starts soldering, and OK held opens the settings menu.
 
 The file-level static `hs02SetTempSaveAt` holds the tick at which a changed set temperature is due to be written to flash, or 0 if nothing is pending.
 
@@ -443,8 +444,6 @@ New. Calls `saveSettings()` if a save is pending and either `now` is true or the
 
 Changed. Handles the home screen buttons and returns the next operating mode. Called by `drawHomeScreen()` every frame. The card theme adds the following ahead of the upstream `switch`:
 
-- `BUTTON_BOTH_LONG`: once the buttons have been held for five seconds it starts a tune, once per hold, moving on to the next tune, of `hs02TuneCount()` tunes, from one hold to the next (tune 0 first after power-on). Nothing happens before the five seconds are up. The statics `bothHeldSince`, `bothFired` and `nextTune` record when the hold began, whether it has fired, and which tune is next.
-- Any button while a tune plays stops the tune and does nothing else.
 - UP short or DOWN short calls `hs02StepSetTemperature()` with `large` false. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
 - OK held saves a pending set temperature, sets `hs02MenuWaitForRelease` and returns `SettingsMenu`.
 - UP held or DOWN held: calls `hs02StepSetTemperature()` with `large` true (UP raises, DOWN lowers; reversed when `ReverseButtonTempChangeEnabled` is on) and repeats while the button is held, with the card menu's pacing kept in two statics, `repeatTimer` and `repeatAcceleration`. The mode stays `HomeScreen`. The temperature adjust screen is not opened from anywhere in the card theme.
@@ -476,30 +475,6 @@ While the buttons are locked, the press that starts boost (when `BoostTemp` is n
 Changed. The per-frame function of the soldering screen, called by `guiHandleDraw()` in the `Soldering` mode. The card theme changes when the buzzer beeps. The tip counts as having reached the target while its reading is within 10 °C of `currentTempTargetDegC`. Upstream beeps for a third of a second each time the reading comes into this window, and arms the beep again whenever the reading leaves it. The card theme beeps in two cases only: the first time the reading is in the window after the soldering screen is entered, and later when the reading is in the window and the target is 20 °C or more above the target it last beeped for. The comment names boost and a set temperature turned well up as such higher targets, and states that the reading drifting out of the window and back, as it does under load, does not beep again.
 
 `scratch_state.state5` is non-zero once it has beeped and `state6` holds the target in °C that it beeped for. `guiRenderLoop()` clears the scratch state on every change of operating mode, so both start at 0 each time the screen is entered. `state3` holds the tick at which the beep ends, as upstream. The status LED is set as upstream: `LED_HOT` inside the window and `LED_HEATING` outside it.
-
-## `source/Core/Threads/UI/logic/utils/Hs02Tune.cpp`
-
-New file, compiled only with `MODEL_HS02` and `HS02_THEME_CARD`. It plays one of two tunes on the buzzer: 0 is the opening of Beethoven's "Ode to Joy" and 1 is the opening of Grieg's "In the Hall of the Mountain King". Each tune is a table of `Note` entries (`kOdeToJoy`, `kMountainKing`), a pitch in Hz (0 is a rest) and a length in milliseconds. State is kept in three file-level variables: `playing` (the tune number, or `kIdle`), `position` (the note that sounds next) and `noteEnds` (the tick at which the current note ends).
-
-#### `bool hs02TunePlaying(void)`
-
-Returns true while a tune is playing. Called by `handleHomeButtons()`.
-
-#### `uint8_t hs02TuneCount(void)`
-
-New. Returns the number of tunes in `kTunes` (four: "La Cucaracha", "Korobeiniki", "Ode to Joy", "In the Hall of the Mountain King"). Used by `handleHomeButtons()` to step through them.
-
-#### `void hs02TuneStart(uint8_t tune)`
-
-Starts tune 0 or 1 from its first note. It does nothing if the `BuzzerEnabled` setting is off, the number is out of range, or that tune is already playing, so it can be called on every frame a button is held. A different tune replaces the one that is playing. Called by `handleHomeButtons()`.
-
-#### `void hs02TuneStop(void)`
-
-Stops the tune, if one is playing, and silences the buzzer. Called by `handleHomeButtons()` on any button press, by `guiRenderLoop()` on every frame in which the home screen is not the current mode, and by `hs02TuneTick()` at the end of a tune.
-
-#### `void hs02TuneTick(void)`
-
-Advances the tune. Called once per GUI frame by `guiRenderLoop()`. While a note is sounding it silences the buzzer for the last 40 ms of the note (`kGapMs`), so repeated notes are heard apart. When the note has ended it starts the next one with `setBuzzerTone()`, or stops after the last note.
 
 ## `source/Core/Threads/UI/drawing/color_160x80/draw_home_gauge.cpp`
 
@@ -590,40 +565,6 @@ Changed. In the card theme it calls `drawCardSleep(tipTemp)`. Called by `gui_Sol
 #### `void ui_draw_temperature_change(void)`
 
 Changed. Draws the temperature adjust screen: a sign, the set temperature and the opposite sign. Upstream chooses which sign is on which side from `ReverseButtonTempChangeEnabled` alone. The fork swaps them when that setting and `TEMP_CHANGE_SWAP_DEFAULT` differ, so with the default 1 of the card theme "−" is on the left and "+" on the right until the setting is switched on. Called by `gui_solderingTempAdjust()` every frame.
-
-## `source/Core/Threads/UI/logic/Hs02Blocks.cpp`
-
-New file, compiled only with `MODEL_HS02` and `HS02_THEME_CARD`. The "Super High Intensity Block Simulator": a falling-block game, turned a quarter so that the 160 pixel side of the display is the height of the game. It is a mode of its own, `OperatingMode::Hs02Blocks` (15, added to `OperatingModes.h`); `guiHandleDraw()` in `GUIThread.cpp` calls `hs02BlocksFrame()` once per GUI frame while that mode is active. The mode is entered from the card menu: the menu entry `BlockGame` in `advancedMenu[]` calls `setOpenBlocks()` in `settingsGUI.cpp`, which sets the flag `hs02BlocksRequested`, and `cardHandleButtons()` in `SettingsMenu.cpp` turns the flag into the mode change, as it does for the debug pages. `printShortDescription()` in `SettingsMenu.cpp` prints this entry's name as four rows of the small font (`SmallBlocksName1` to `SmallBlocksName4`) instead of the usual two-row text.
-
-Each of the eight shapes has a colour of its own (`kColours`, true RGB565, entry 0 being the background). That is more than the four colours of a colour-screen picture, so the game does not draw into the frame buffer. It paints rectangles straight onto the panel with `LCD::fillPanelRect()` and repaints only what differs from what the panel shows, which it tracks in `shownCell`, `shownScore`, `shownScoreVisible` and `shownNext`. While the mode is active `guiRenderLoop()` does not call `Display::refresh()`, and on leaving the game calls `LCD::forceNextRefresh()` so the menu's first frame is sent in full.
-
-The other state is in file-level statics: the field (`field`, 15 rows of 8 cells, four bits per cell: 0 is empty, 1 to 8 the colour), the falling piece (`piece`, `pieceColour`, `pieceX`, `pieceY`), the next shape, the score, a random seed, timers, the previous button states and the position in the end-of-game sound (`hornStep`).
-
-Two functions were added elsewhere for it. `LCD::fillPanelRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t rgb565)` (`LCD.cpp`) sets the drawing window and sends the colour, inverted as `refreshColor()` does, in 32-byte chunks; it does nothing if the rectangle does not lie on the panel. `hs02TuneSetTempo(uint8_t percent)` (`Hs02Tune.cpp`) sets the speed of the playing tune, 100 to 250 per cent; `hs02TuneTick()` divides each note's length by it, and `hs02TuneStop()` puts it back to 100. `guiRenderLoop()` lets a tune play in this mode as well as on the home screen.
-
-#### `OperatingMode hs02BlocksFrame(const ButtonState buttons, guiContext *cxt)`
-
-One frame of the game. It ignores `buttons` and reads the three buttons directly with `getButtonA()` (DOWN, right), `getButtonB()` (UP, left) and `getButtonOK()`, because the decoded button states only report a press on release. On the first frame after the mode was entered (`cxt->scratch_state.state1` is 0) it paints the empty game with `drawAll()`; the game then starts once all buttons are up. UP or DOWN moves the piece one cell at once and repeats after 250 ms, then every 80 ms. OK going down turns the piece a quarter (`turned()`), trying the positions 0, -1, +1 and -2 cells sideways. The piece falls one row every 600 ms minus 20 ms per point, not faster than every 120 ms. OK held for one second leaves: it stops the sound, calls `LCD::forceNextRefresh()`, sets `hs02MenuWaitForRelease` and returns `OperatingMode::SettingsMenu`. After the game has ended, OK starts a new one. Returns `OperatingMode::Hs02Blocks` otherwise.
-
-#### Helpers (in the anonymous namespace)
-
-| Function | What it does |
-| --- | --- |
-| `uint8_t cellAt(uint8_t column, uint8_t row)` | The colour number stored for a field cell, 0 if it is empty. |
-| `uint8_t randomShape()` | A linear congruential generator on `seed`; returns an index into `kShapes` (eight shapes of two to four cells). |
-| `bool fits(const Shape &shape, int8_t x, int8_t y)` | True if every cell of the shape at that position is inside the field and free. |
-| `Shape turned(const Shape &shape)` | The shape turned a quarter: (x, y) becomes (-y, x), moved back so the smallest x and y are 0. |
-| `bool spawn()` | Makes the next shape the falling piece at the top (its colour number is the shape index plus 1), draws a new next shape, and returns whether it has room. |
-| `void newGame()` | Clears the field and the score, seeds the generator from the tick count, silences the buzzer, and spawns the first piece. |
-| `bool rowFull(uint8_t row)` | True if no cell of the row is empty. |
-| `void lockPiece()` | Writes the piece into the field, removes full rows (one point each), and spawns the next piece; if that one does not fit the game ends, the music stops and the sad horn starts. |
-| `void music()` | Starts the last tune of `kTunes` whenever no tune is playing, so it loops, and sets its tempo to 100 per cent plus 4 per point, up to 200. |
-| `void horn(TickType_t now)` | Steps through `kHorn`, four falling notes in hertz and milliseconds, with `setBuzzerTone()`; the last note alternates between two pitches every 80 ms. |
-| `void block(uint8_t x, uint8_t y, uint8_t width, uint8_t height, uint16_t rgb565)` | Paints a filled rectangle given in upright pixels (80 wide, 160 high) onto the lying panel with `LCD::fillPanelRect()`. With `Display::getRotation()` false the upright bottom is the left end of the display, otherwise the right end, so "down" is towards the tip in both orientations. |
-| `void drawNumber(uint16_t value, uint8_t x, uint8_t y)` | Draws three digits from the 3 x 5 pixel table `kDigits`, each pixel 3 x 3. |
-| `void drawAll()` | Fills the panel with the background, draws the walls of the field, and marks everything else as not yet shown. |
-| `void drawChanges(bool scoreVisible)` | Paints the field cells (with the falling piece), the score and the next piece where they differ from what is shown. |
-| `OperatingMode leave(guiContext *cxt)` | The steps for leaving the game described above. |
 
 ## `source/Core/Threads/UI/logic/TemperatureAdjust.cpp`
 

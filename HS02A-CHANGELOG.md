@@ -10,29 +10,9 @@ GPLv3; this is a modified version and is published under the same licence.
 - **Screen brightness has ten levels, 1 to 10** (it had nine). A stored value of the old
   lowest level is reset to full brightness.
 
-## Build 49
+## Builds 46 to 49
 
-- **The block game is now the "Super High Intensity Block Simulator"**, with the full name
-  in the menu.
-- **A colour for every shape.** The eight shapes are blue, green, red, orange, yellow, purple,
-  pink and white. The game paints straight onto the display for this, because the firmware's
-  colour screens only have four colours each.
-- **Music and a sad horn.** "In the Hall of the Mountain King" plays during the game and gets
-  faster with the score; losing plays a falling four-note horn. Both follow "Buzzer beep".
-- **Hold OK for a second to leave the game.** The fast drop and the Up-and-Down exit are gone.
-
-## Build 47
-
-- **Block game (new, Advanced settings).** A small falling-block game for the upright screen:
-  hold the iron tip down, Up and Down move the piece, OK turns it, OK held drops it, and Up
-  and Down held together for a second leave the game.
-- **Four tunes.** The five-second hold of Up and Down plays "La Cucaracha" first, then
-  "Korobeiniki", "Ode to Joy" and "In the Hall of the Mountain King" in turn.
-
-## Build 46
-
-- **The tune needs a five-second hold.** Up and Down held together on the ready screen now do
-  nothing until five seconds have passed, then play one of the two tunes, taking turns.
+- Small internal changes.
 
 ## Build 45
 
@@ -125,7 +105,6 @@ GPLv3; this is a modified version and is published under the same licence.
 - **Sleep and boost temperature in the card menu:** a press changes the value by 1 degree, a
   held button jumps to the next multiple of 10. Temperature values in the menu are followed by
   C or F.
-- **Second tune:** keep Up and Down held for five seconds on the ready screen.
 - **Fixed: boost "Off" did not survive a change of temperature unit.** Switching to °F turned
   it into 30 °F (shown as on); switching to °C turned it into the maximum temperature. This was
   in the port's code. "Off" now stays off.
