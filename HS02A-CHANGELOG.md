@@ -22,7 +22,7 @@ GPLv3; this is a modified version and is published under the same licence.
   no longer have to let go and hold again.
 - **One firmware only.** The builds with the port's interface and the two alternative PID
   profiles are gone; the Makefile always builds the card theme with the hybrid PID.
-- **Browser demo** of the screens and menus: https://claudiotnt.github.io/IronOS-HS02A/demo/
+- **Browser demo** of the screens and menus: https://coldjunction.github.io/IronOS-HS02A/demo/
 
 ## Build 35
 

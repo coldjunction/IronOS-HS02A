@@ -20,7 +20,7 @@ bugparty. This fork is a set of changes on top of their work.
 
 ## Contents
 
-1. [Which file to flash](#which-file-to-flash) and the [browser demo](https://claudiotnt.github.io/IronOS-HS02A/demo/)
+1. [Which file to flash](#which-file-to-flash) and the [browser demo](https://coldjunction.github.io/IronOS-HS02A/demo/)
 2. [Installing](#installing)
 3. [Buttons](#buttons)
 4. [Screens](#screens)
@@ -37,7 +37,7 @@ bugparty. This fork is a set of changes on top of their work.
 
 Each release has one firmware file, `vNN_HS02A_IronOS_EN_hybrid-PID_card-theme_firmware.bin`,
 where NN is the build number. You can try the screens and menus first in the
-[browser demo](https://claudiotnt.github.io/IronOS-HS02A/demo/).
+[browser demo](https://coldjunction.github.io/IronOS-HS02A/demo/).
 
 ## Installing
 

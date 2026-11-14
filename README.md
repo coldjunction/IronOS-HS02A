@@ -3,7 +3,7 @@
 A modified version of the [bugparty/IronOS](https://github.com/bugparty/IronOS) port of
 [IronOS](https://github.com/Ralim/IronOS) for the FNIRSI HS-02A soldering iron.
 
-**[Try it in your browser](https://claudiotnt.github.io/IronOS-HS02A/demo/)**: the real screens and menus, compiled to WebAssembly.
+**[Try it in your browser](https://coldjunction.github.io/IronOS-HS02A/demo/)**: the real screens and menus, compiled to WebAssembly.
 
 **Status:** developed and tested on one HS-02A. It is not an official FNIRSI or IronOS release.
 Flash it at your own risk, and read the known issues first.
@@ -30,7 +30,7 @@ useful to it, it is free to take under the same licence.
 ## Controls
 
 The iron has three buttons. Left to right with the screen facing you: **Down**, **Up**, **OK**.
-You can try all of this in the [browser demo](https://claudiotnt.github.io/IronOS-HS02A/demo/).
+You can try all of this in the [browser demo](https://coldjunction.github.io/IronOS-HS02A/demo/).
 
 ### Flashing the firmware
 
