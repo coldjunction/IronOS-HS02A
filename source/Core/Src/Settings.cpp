@@ -118,7 +118,7 @@ static const SettingConstants settingsConstants[(int)SettingsOptions::SettingsOp
     {                     0,                                                                     8,                 1,                            0}, // ColourSleep
     {                     0,                                                                     8,                 1,                            0}, // ColourMenu
     {                     0,                                                                     1,                 1,                            0}, // LowVoltageAllowed
-    {                     0,                                                                     1,                 1,                            1}, // ButtonLight
+    {                     0,                                                                    10,                 1,                           10}, // ButtonLight
     {                     0,                                                                  6000,                 1,                            0}, // Cal100uV
 };
 static_assert((sizeof(settingsConstants) / sizeof(SettingConstants)) == ((int)SettingsOptions::SettingsOptionsLength));

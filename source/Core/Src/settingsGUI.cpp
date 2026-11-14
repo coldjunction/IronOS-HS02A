@@ -969,7 +969,13 @@ static void displayCoolingBlinkEnabled(void) { Display::drawCheckbox(getSettingV
 
 #if defined(LCD_160x80) && defined(HS02_THEME_CARD)
 static void displayBuzzerEnabled(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::BuzzerEnabled)); }
-static void displayButtonLight(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::ButtonLight)); }
+static void displayButtonLight(void) {
+  if (getSettingValue(SettingsOptions::ButtonLight)) {
+    Display::printNumber(getSettingValue(SettingsOptions::ButtonLight), 2, FontStyle::LARGE);
+  } else {
+    SETTING_VALUE_OFF();
+  }
+}
 static void displayLowVoltageAllowed(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::LowVoltageAllowed)); }
 
 // "Debug pages" menu entry: a menu handler cannot change screen itself, so it leaves a request

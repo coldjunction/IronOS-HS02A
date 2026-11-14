@@ -192,11 +192,24 @@ bool          isTipDisconnected() {
   return tipTemp > tipDisconnectedThres;
 }
 
-// The white light behind the DOWN and UP buttons (one on/off output, LED1) follows the
-// "Button light" setting. Called once per GUI frame.
+// The white light behind the DOWN and UP buttons is one on/off output (LED1), with no timer
+// channel on its pin. It is dimmed in software from the 1 kHz FreeRTOS tick: a 10-tick period
+// (100 Hz), lit for as many ticks as the "Button light" setting says (0 = off, 10 = fully on).
+static volatile uint8_t buttonLightLevel = 0; // 0..10; 0 until the GUI has read the setting
+
+// Called once per GUI frame.
 void hs02ApplyButtonLight(void) {
+  const uint16_t level = getSettingValue(SettingsOptions::ButtonLight);
+  buttonLightLevel     = level > 10 ? 10 : (uint8_t)level;
+}
+
+extern "C" void vApplicationTickHook(void) { // from the tick interrupt, every millisecond
 #if BUTTON_BACKLIGHT != 0
-  if (getSettingValue(SettingsOptions::ButtonLight)) {
+  static uint8_t phase = 0;
+  if (++phase >= 10) {
+    phase = 0;
+  }
+  if (phase < buttonLightLevel) {
     GPIO_SetBits(LED_Port, LED1_Pin);
   } else {
     GPIO_ResetBits(LED_Port, LED1_Pin);

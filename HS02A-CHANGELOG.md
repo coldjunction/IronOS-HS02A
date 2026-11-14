@@ -3,6 +3,14 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 43
+
+- **Ready screen: holding Down changes the target on the spot**, like the heating screen. The
+  full-screen temperature screen is no longer opened from anywhere.
+- **Button light brightness.** The "Button light" setting is now Off or 1 (dim) to 10 (full)
+  instead of on / off. The light is dimmed in software at 100 Hz. **After updating, the setting
+  reads 1 (dim) if it was on before; set it to the brightness you want.**
+
 ## Build 42
 
 - **"Calibrate at 100C" stores whatever the iron reads.** The reading used to be refused unless

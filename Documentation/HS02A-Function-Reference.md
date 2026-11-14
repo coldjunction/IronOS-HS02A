@@ -63,7 +63,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | `kCal100MinAboveZerouV`, `kCal100MaxuV` | `source/Core/Src/settingsGUI.cpp` | 50, 6000 | not present | Limits in microvolts for the reading that `setCalibrate100()` stores as the 100 °C point: at least 50 above the `CalibrationOffset` setting (below that there is no signal to use) and at most 6000, the most the `Cal100uV` setting holds. Any reading in between is stored. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 42 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 43 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
 
 ## Settings added
 
@@ -78,7 +78,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | 60 | `ColourSleep` | 0–8 | 0 | Accent colour of the sleep screen. | `drawCardSleep()`, `displayColourSleep()` |
 | 61 | `ColourMenu` | 0–8 | 0 | Accent colour of the settings menu and other mono screens. | `guiHandleDraw()` (`GUIThread.cpp`), `displayColourMenu()` |
 | 62 | `LowVoltageAllowed` | 0–1 | 0 | 1 accepts a DC supply below 9 V, down to `DC_MINIMUM_VOLTAGE_X10`. | `lookupVoltageLevel()` (`Settings.cpp`), `displayLowVoltageAllowed()` |
-| 63 | `ButtonLight` | 0–1 | 1 | 1 switches on the white light behind the DOWN and UP buttons. | `hs02ApplyButtonLight()` (`BSP.cpp`), `displayButtonLight()` |
+| 63 | `ButtonLight` | 0–10 | 10 | Brightness of the white light behind the DOWN and UP buttons: 0 is off, 10 is fully on. | `hs02ApplyButtonLight()` (`BSP.cpp`), `displayButtonLight()` (`settingsGUI.cpp`) |
 | 64 | `Cal100uV` | 0–6000 | 0 | The tip amplifier's reading in microvolts with the tip at 100 °C. 0 means not calibrated. | `fallbackTipTempCx10()` (`ThermoModel.cpp`), `displayCalibrate100()` |
 
 Colour settings: 0 is "Auto", the theme's own colour for that screen. 1 to 8 select a fixed colour from the table in `hs02CardAccent()`: 1 Blue `0x3DFF`, 2 Green `0x262B`, 3 Red `0xEA28`, 4 Orange `0xF4E1`, 5 Yellow `0xFE62`, 6 Purple `0xA45F`, 7 Pink `0xF396`, 8 White `0xFFFF`.
@@ -107,7 +107,11 @@ New. Returns the statistics collected by `hs02CurrentSenseSample()`. `offMean`, 
 
 #### `void hs02ApplyButtonLight(void)`
 
-New. Sets or clears `LED1_Pin` on `LED_Port` according to the `ButtonLight` setting. Called once per GUI frame from `guiRenderLoop()`. Compiles to nothing when `BUTTON_BACKLIGHT` is 0.
+New. Copies the `ButtonLight` setting (0 to 10, larger values count as 10) into the file-level static `buttonLightLevel`. Called once per GUI frame from `guiRenderLoop()`. The pin itself is driven by `vApplicationTickHook()`.
+
+#### `extern "C" void vApplicationTickHook(void)`
+
+New. The FreeRTOS tick hook, called from the tick interrupt every millisecond; the fork sets `configUSE_TICK_HOOK` to 1 in `source/Core/BSP/Fnirsi/FreeRTOSConfig.h` for it. It dims the button light in software, because `LED1_Pin` has no timer channel: a static phase counter runs from 0 to 9 (a 100 Hz period), and `LED1_Pin` is set while the phase is below `buttonLightLevel` and cleared otherwise. Compiles to an empty function when `BUTTON_BACKLIGHT` is 0.
 
 #### `void setBuzzer(bool on)`
 
@@ -329,7 +333,7 @@ Each is the `draw` callback of its menu entry and is called by `render_menu()` o
 | Function | What it draws |
 | --- | --- |
 | `static void displayBuzzerEnabled(void)` | A checkbox for `BuzzerEnabled`. |
-| `static void displayButtonLight(void)` | A checkbox for `ButtonLight`. |
+| `static void displayButtonLight(void)` | "Off" for 0, otherwise the `ButtonLight` level as a number, 1 to 10. |
 | `static void displayLowVoltageAllowed(void)` | A checkbox for `LowVoltageAllowed`. |
 | `static void displayCalibrate100(void)` | A checkbox that is ticked when `Cal100uV` is not 0, that is, once a 100 °C point is stored. |
 | `static void displayColourReady(void)` | `displayCardColour(SettingsOptions::ColourReady)`. |
@@ -422,7 +426,7 @@ Changed. The settings menu's per-frame function, called by `guiHandleDraw()` in 
 
 ## `source/Core/Threads/UI/logic/HomeScreen.cpp`
 
-The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen buttons are: UP or DOWN short changes the set temperature, UP held opens the settings menu, DOWN held opens the temperature adjust screen, OK starts soldering, and UP and DOWN held together plays a tune.
+The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen buttons are: UP or DOWN short changes the set temperature, UP held opens the settings menu, DOWN held lowers the set temperature in large steps on the spot, OK starts soldering, and UP and DOWN held together plays a tune.
 
 The file-level static `hs02SetTempSaveAt` holds the tick at which a changed set temperature is due to be written to flash, or 0 if nothing is pending.
 
@@ -442,7 +446,8 @@ Changed. Handles the home screen buttons and returns the next operating mode. Ca
 - Any button while a tune plays stops the tune and does nothing else.
 - UP short or DOWN short calls `hs02StepSetTemperature()` with `large` false. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
 - UP held saves a pending set temperature, sets `hs02MenuWaitForRelease` and returns `SettingsMenu`.
-- Any other press saves a pending set temperature and falls through to the upstream handling, where DOWN held opens the temperature adjust screen and OK short starts soldering.
+- DOWN held: calls `hs02StepSetTemperature()` with `large` true (direction reversed when `ReverseButtonTempChangeEnabled` is on) and repeats while the button is held, with the card menu's pacing kept in two statics, `repeatTimer` and `repeatAcceleration`. The mode stays `HomeScreen`. The temperature adjust screen is not opened from anywhere in the card theme.
+- Any other press saves a pending set temperature and falls through to the upstream handling, where OK short starts soldering.
 
 ## `source/Core/Threads/UI/logic/Soldering.cpp`
 
