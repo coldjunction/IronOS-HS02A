@@ -3,6 +3,19 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 42
+
+- **"Calibrate at 100C" stores whatever the iron reads.** The reading used to be refused unless
+  it fell in a window around the expected value. What an iron reads at 100 °C differs too much
+  between irons for that, and measuring it is the point. Only a reading with no signal at all,
+  or one too large to store, is refused ("No usable reading"). This puts the responsibility on
+  the water: it has to be at a rolling boil.
+- **Fixed: the buzzer could stay on** if the heating screen was left within a third of a second
+  of a beep. It is now switched off whenever that screen is left.
+- **Fixed: a button held to dismiss the 100 °C result screen** carried on into the menu.
+- **Fixed: the curve skipped a section** if the cold offset was lowered a lot after the 100 °C
+  point was stored. Such a point is now ignored.
+
 ## Build 40
 
 - **"Calibrate at 100C" (new, Advanced settings).** Hold the tip in boiling water with the

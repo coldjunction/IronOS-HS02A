@@ -203,6 +203,11 @@ void guiRenderLoop(void) {
   // Post draw we handle any state transitions
 
   if (newMode != currentOperatingMode) {
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+    if (currentOperatingMode == OperatingMode::Soldering) {
+      setBuzzer(false); // a beep that started just before leaving would otherwise never be ended
+    }
+#endif
     context.viewEnterTime = xTaskGetTickCount();
     context.previousMode  = currentOperatingMode;
     // If the previous mode is the startup logo; we dont want to return to it, but instead dispatch out to either home or soldering

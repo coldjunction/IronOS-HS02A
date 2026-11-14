@@ -60,10 +60,10 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | `GUITaskStackSize` | `source/Core/Src/main.cpp` | `(1024 + 256) / 2` | `1024 / 2` | Length of `GUITaskBuffer`, the GUI task's stack, in 32-bit words. |
 | `lcdInitCmds` delays | `source/Core/Drivers/LCD.cpp` | 120 ms after `ST7735_SWRESET`, 120 ms after `ST7735_SLPOUT`, 10 ms after `ST7735_DISPON` | 150, 200, 100 ms | Waits in the LCD initialisation command chain. |
 | `KXJT3_ORIENTATION_THRESHOLD` | `source/Core/Drivers/KXTJ3_defines.h` | 2900 with `MODEL_HS02`, otherwise 2000 | 2000 | Accelerometer reading, in counts of about 4096 per g, beyond which the iron counts as held left- or right-handed. See the section on that file. |
-| `kCal100MinAboveZerouV`, `kCal100MaxAboveZerouV` | `source/Core/Src/settingsGUI.cpp` | 250, 4000 | not present | Limits in microvolts for the reading that `setCalibrate100()` accepts as the 100 °C point: it has to lie this far above the `CalibrationOffset` setting. The comment says that the port's curve and the stock firmware's nominal curve put 100 °C at roughly 1700 to 2400 microvolts, that the first HS-02A tried read less because its amplifier's zero is below 0 and the first part of the signal is cut off, and that the lower limit only has to rule out a tip that is not in hot water at all. |
+| `kCal100MinAboveZerouV`, `kCal100MaxuV` | `source/Core/Src/settingsGUI.cpp` | 50, 6000 | not present | Limits in microvolts for the reading that `setCalibrate100()` stores as the 100 °C point: at least 50 above the `CalibrationOffset` setting (below that there is no signal to use) and at most 6000, the most the `Cal100uV` setting holds. Any reading in between is stored. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 40 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 42 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first debug page. |
 
 ## Settings added
 
@@ -311,8 +311,8 @@ New (card theme). The handler of the "Calibrate at 100C" menu entry. It measures
 
 - It shows the question "Tip held in / boiling water / 30 seconds?" and redraws it every 40 ms. OK short carries on; any other button returns without a measurement.
 - It shows "Measuring" and takes 16 samples with `getTipRawTemp(1)`, 100 ms apart; the comment says the CJC calibration takes them the same way. Their mean is converted to microvolts before the offset is removed, with `TipThermoModel::convertTipRawADCTouV(mean, true)`.
-- The reading is accepted if it lies at least `kCal100MinAboveZerouV` (250 microvolts) and at most `kCal100MaxAboveZerouV` (4000 microvolts) above the `CalibrationOffset` setting. An accepted reading is written to `Cal100uV` and `saveSettings()` is called. A reading outside these limits changes nothing.
-- It shows the result until a button is pressed: "100C saved at" or "Not near 100C / Nothing saved", with the reading in microvolts on the row below.
+- The reading is accepted if it lies at least `kCal100MinAboveZerouV` (50 microvolts) above the `CalibrationOffset` setting and is not above `kCal100MaxuV` (6000 microvolts). It is not checked for being near the value expected at 100 °C. An accepted reading is written to `Cal100uV` and `saveSettings()` is called. A reading outside these limits changes nothing.
+- It shows the result until a button is pressed: "100C saved at" or "No usable / reading", with the reading in microvolts on the row below. Leaving either the question or the result with a button sets `hs02MenuWaitForRelease`, so the card menu ignores that button until it is released.
 
 #### `static void displayCardColour(SettingsOptions option)`
 

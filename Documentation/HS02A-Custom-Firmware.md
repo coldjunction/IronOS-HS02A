@@ -259,8 +259,12 @@ This reads the amplifier with the tip at a known temperature.
    away from each other as far as you can.
 4. Press OK for yes and keep the tip in the water while "Measuring" shows (two seconds).
 
-The screen then shows "100C saved at" and the reading in microvolts, or "Not near 100C,
-Nothing saved" if the reading was outside 250 to 4000 µV above the zero. The menu entry shows
+The screen then shows "100C saved at" and the reading in microvolts. Whatever the iron reads is
+stored: the firmware does not judge whether it looks like 100 °C, because that reading is the
+thing being measured and it differs a lot between irons. So the water has to be at a real
+rolling boil; a calibration in merely hot water is stored just the same and makes the tip run
+cooler than shown. The only refusal is "No usable reading", when there is no signal at all
+(the tip is not in anything hot) or the reading is above what the setting can hold. The menu entry shows
 a tick once a point is stored. Running it again replaces the stored point.
 
 A tip that has been in water should be dried afterwards. Dipping a cold tip in hot water does

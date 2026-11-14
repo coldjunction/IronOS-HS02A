@@ -982,12 +982,13 @@ static void setOpenDebugPages(void) { hs02DebugPagesRequested = true; }
 // 223 C. This stores one: the tip amplifier's reading while the tip is held in boiling water,
 // with the heater off (it is off everywhere in the menu). Water boils about 1 C lower for every
 // 300 m above sea level; 100 C is assumed.
-// The reading has to be between 250 and 4000 uV above the zero reading to be taken. The
-// port's curve and the stock firmware's nominal curve put 100 C at roughly 1700 to 2400 uV, but
-// the first real HS-02A tried read about 1300 (only 400 above the offset of 900 it still had
-// stored then): its amplifier's zero is below 0, so the first part of the signal is cut off. The lower limit only has to rule out a tip that is not
-// in hot water at all.
-constexpr uint32_t kCal100MinAboveZerouV = 250, kCal100MaxAboveZerouV = 4000;
+// Any reading that carries a signal is stored: what an iron reads at 100 C is the thing being
+// measured, and it differs too much between irons to be second-guessed (the curves put it at
+// roughly 1700 to 2400 uV; the first real HS-02A tried read 1300). Two readings are refused
+// because they cannot be used: one within 50 uV of the zero reading (a few ADC counts: the tip
+// is not in anything hot, or the amplifier is still at its lower limit), and one above 6000 uV,
+// the most the Cal100uV setting holds.
+constexpr uint32_t kCal100MinAboveZerouV = 50, kCal100MaxuV = 6000;
 
 // A screen of small-font rows, 16 pixels apart; with a question, "no / no / yes" under it in
 // button order (DOWN, UP, OK).
@@ -1008,6 +1009,8 @@ static void cal100DrawRows(const char *const *rows, uint8_t count, bool question
   LCD::setMonoRegions(0, 0, 255, 64);
 }
 
+extern bool hs02MenuWaitForRelease; // SettingsMenu.cpp: the card menu ignores buttons until all are up
+
 static void setCalibrate100(void) {
   const char *const ask[] = {SmallCal100Ask1, SmallCal100Ask2, SmallCal100Ask3};
   for (;;) { // OK is yes, any other button leaves
@@ -1017,6 +1020,7 @@ static void setCalibrate100(void) {
       break;
     }
     if (answer != BUTTON_NONE) {
+      hs02MenuWaitForRelease = true; // a held button must not carry on into the menu
       return;
     }
     Display::refresh();
@@ -1033,7 +1037,7 @@ static void setCalibrate100(void) {
   }
   const uint32_t readinguV = TipThermoModel::convertTipRawADCTouV(sum / 16, true);
   const uint32_t zerouV    = getSettingValue(SettingsOptions::CalibrationOffset);
-  const bool     plausible = readinguV >= zerouV + kCal100MinAboveZerouV && readinguV <= zerouV + kCal100MaxAboveZerouV;
+  const bool plausible = readinguV >= zerouV + kCal100MinAboveZerouV && readinguV <= kCal100MaxuV;
   if (plausible) {
     setSettingValue(SettingsOptions::Cal100uV, (uint16_t)readinguV);
     saveSettings();
@@ -1046,6 +1050,7 @@ static void setCalibrate100(void) {
     Display::printNumber(readinguV, 5, FontStyle::SMALL);
     Display::print(SmallSymbolLiveMicrovolts, FontStyle::SMALL);
     if (getButtonState() != BUTTON_NONE) {
+      hs02MenuWaitForRelease = true;
       return;
     }
     Display::refresh();

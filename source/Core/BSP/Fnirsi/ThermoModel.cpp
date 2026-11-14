@@ -76,8 +76,10 @@ uint32_t fallbackTipTempCx10(uint32_t tipuV) {
   if (cal100 != 0) {
     if (offset == 0) {
       zero = cal100 - kSignalAt100; // may be negative
-    } else if (cal100 > offset) {
+    } else if (cal100 > offset && cal100 - offset < s223) {
       at100 = cal100 - offset; // the zero is known: the 100 C point shapes the low end instead
+                               // (ignored if it would not sit below the 223 C node, which can
+                               // only happen if the CJC offset was changed a lot afterwards)
     }
   }
 
