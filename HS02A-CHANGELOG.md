@@ -3,6 +3,19 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 47
+
+- **Block game (new, Advanced settings).** A small falling-block game for the upright screen:
+  hold the iron tip down, Up and Down move the piece, OK turns it, OK held drops it, and Up
+  and Down held together for a second leave the game.
+- **Four tunes.** The five-second hold of Up and Down plays "La Cucaracha" first, then
+  "Korobeiniki", "Ode to Joy" and "In the Hall of the Mountain King" in turn.
+
+## Build 46
+
+- **The tune needs a five-second hold.** Up and Down held together on the ready screen now do
+  nothing until five seconds have passed, then play one of the two tunes, taking turns.
+
 ## Build 45
 
 - **"Temp change short" and "Temp change long" are used as set** for the Up / Down steps on the

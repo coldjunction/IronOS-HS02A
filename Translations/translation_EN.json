@@ -386,6 +386,10 @@
     "DebugPages": {
       "displayText": "Debug\npages",
       "description": "Open the debug pages"
+    },
+    "BlockGame": {
+      "displayText": "Block\ngame",
+      "description": "A falling-block game: hold the iron upright, tip down"
     }
   },
   "gaugeLabels": {

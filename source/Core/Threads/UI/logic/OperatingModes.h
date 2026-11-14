@@ -39,6 +39,7 @@ enum class OperatingMode {
   TemperatureAdjust=7,  // Set point temperature adjustment
   UsbPDDebug=8,         // USB PD debugging information
   ThermalRunaway=9,     // Thermal Runaway warning state.
+  Hs02Blocks=15,        // HS-02 card theme: the block game (Hs02Blocks.cpp)
 };
 
 enum class TransitionAnimation {
@@ -77,6 +78,7 @@ OperatingMode gui_SettingsMenu(const ButtonState buttons, guiContext *cxt);     
 OperatingMode gui_solderingProfileMode(const ButtonState buttons, guiContext *cxt); // Profile mode for hot likely-not-so-pointy tool
 OperatingMode performCJCC(const ButtonState buttons, guiContext *cxt);              // Used to calibrate the Cold Junction offset
 OperatingMode showDebugMenu(const ButtonState buttons, guiContext *cxt);            // Debugging values
+OperatingMode hs02BlocksFrame(const ButtonState buttons, guiContext *cxt);          // HS-02 card theme: the block game
 OperatingMode showPDDebug(const ButtonState buttons, guiContext *cxt);              // Debugging menu that shows PD adaptor info
 OperatingMode showWarnings(const ButtonState buttons, guiContext *cxt);             // Shows user warnings if required
 

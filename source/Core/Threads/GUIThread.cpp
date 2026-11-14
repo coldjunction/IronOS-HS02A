@@ -154,6 +154,11 @@ OperatingMode guiHandleDraw(void) {
   case OperatingMode::DebugMenuReadout:
     newMode = showDebugMenu(buttons, &context);
     break;
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+  case OperatingMode::Hs02Blocks:
+    newMode = hs02BlocksFrame(buttons, &context);
+    break;
+#endif
   case OperatingMode::CJCCalibration:
     newMode = performCJCC(buttons, &context);
     break;

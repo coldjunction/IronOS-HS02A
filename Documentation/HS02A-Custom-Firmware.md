@@ -28,7 +28,7 @@ bugparty. This fork is a set of changes on top of their work.
 6. [Settings menu, entry by entry](#settings-menu-entry-by-entry)
 7. [Calibrating the temperature](#calibrating-the-temperature)
 8. [Debug pages](#debug-pages)
-9. [Tunes](#tunes)
+9. [Tunes](#tunes) and the [block game](#block-game)
 10. [Power supplies](#power-supplies)
 11. [Building from source](#building-from-source)
 12. [How the PID was tuned](#how-the-pid-was-tuned)
@@ -65,7 +65,7 @@ The three buttons, left to right as you hold the iron with the screen facing you
 | Press OK | Start heating |
 | Hold Up | Open the settings menu |
 | Hold Down | Target down by "Temp change long" (default 10 degrees), repeating, faster the longer it is held |
-| Hold Up and Down together | Play a tune (see [Tunes](#tunes)) |
+| Hold Up and Down together for 5 seconds | Play a tune (see [Tunes](#tunes)) |
 
 ### Heating screen
 
@@ -201,6 +201,7 @@ a fixed button layout, and there is no boot logo.
 | Power pulse duration | Length of a pulse, in steps of 250 ms. |
 | Restore default settings | Resets every setting, including the CJC calibration. |
 | Debug pages (new) | Opens the [debug pages](#debug-pages). |
+| Block game (new) | Opens the [block game](#block-game). |
 
 ## Calibrating the temperature
 
@@ -296,14 +297,40 @@ The standard IronOS pages follow. The first of them shows the build number of th
 
 ## Tunes
 
-On the ready screen, hold Up and Down together: the buzzer plays the opening of Beethoven's
-"Ode to Joy". Keep holding for five seconds and it switches to the opening of Grieg's "In the
-Hall of the Mountain King". Any button stops a tune. Both are in the public domain. The tunes
-are silent when "Buzzer beep" is off.
+On the ready screen, hold Up and Down together for five seconds: the buzzer plays a tune. The
+first time after plugging in it is "La Cucaracha"; each further time it is the next of four:
+"La Cucaracha", "Korobeiniki" (a Russian folk song), the opening of Beethoven's "Ode to Joy"
+and the opening of Grieg's "In the Hall of the Mountain King". Any button stops a tune. All
+four are in the public domain. The tunes are silent when "Buzzer beep" is off.
+
+The buzzer can sound one pitch at a time, so melodies and beeps are what it can do; it cannot
+play chords, speech or recorded sound.
 
 To change a tune, edit the note tables in
 `source/Core/Threads/UI/logic/utils/Hs02Tune.cpp`: each entry is a pitch in Hz and a length in
 milliseconds.
+
+## Block game
+
+**Advanced settings → Block game** opens a small falling-block game. Hold the iron upright
+with the tip pointing down: the screen is used on its side, and the pieces fall towards the
+tip. The heater is off.
+
+Pieces of two to four squares fall into a field 8 squares wide and 15 high. A full row
+disappears and scores a point, and the pieces fall faster as the score grows. The game ends
+when a new piece has no room.
+
+| Action | Result |
+|---|---|
+| Up | Piece one square to the left (hold to repeat) |
+| Down | Piece one square to the right (hold to repeat) |
+| Press OK | Turn the piece a quarter |
+| Hold OK | The piece falls fast |
+| Hold Up and Down together for a second | Leave the game |
+| OK after the game has ended | Play again |
+
+The score is at the top left and the next piece at the top right. A cleared row and the end
+of the game each give a short beep, if "Buzzer beep" is on.
 
 ## Power supplies
 

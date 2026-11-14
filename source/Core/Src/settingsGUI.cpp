@@ -129,6 +129,7 @@ static void displayBuzzerEnabled(void);
 static void displayButtonLight(void);
 static void displayLowVoltageAllowed(void);
 static void setOpenDebugPages(void);
+static void setOpenBlocks(void);
 static void setCalibrate100(void);
 static void displayCalibrate100(void);
 static void displayColourReady(void);
@@ -508,6 +509,8 @@ const menuitem advancedMenu[] = {
 #if defined(LCD_160x80) && defined(HS02_THEME_CARD)
   /* HS-02 card theme: the debug pages, without having to hold a button on the home screen */
   {SETTINGS_DESC(SettingsItemIndex::DebugPages), setOpenDebugPages, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::DebugPages, 7},
+  /* HS-02 card theme: a falling-block game on the upright screen */
+  {SETTINGS_DESC(SettingsItemIndex::BlockGame), setOpenBlocks, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::BlockGame, 7},
 #endif
   /* vvvv end of menu marker. DO NOT REMOVE vvvv */
   {0, nullptr, nullptr, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::NUM_ITEMS, 0}
@@ -987,6 +990,9 @@ static void displayLowVoltageAllowed(void) { Display::drawCheckbox(getSettingVal
 // that the card menu (SettingsMenu.cpp) picks up straight after calling it.
 bool        hs02DebugPagesRequested = false;
 static void setOpenDebugPages(void) { hs02DebugPagesRequested = true; }
+// "Block game" works the same way (the game is a mode of its own, Hs02Blocks.cpp)
+bool        hs02BlocksRequested = false;
+static void setOpenBlocks(void) { hs02BlocksRequested = true; }
 
 // ---- "Calibrate at 100C" --------------------------------------------------------------------
 // The curve in Fnirsi/ThermoModel.cpp has no measured point between the cold end (25 C) and

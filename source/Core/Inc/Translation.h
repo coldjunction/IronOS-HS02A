@@ -183,6 +183,7 @@ enum class SettingsItemIndex : uint8_t {
   ButtonLight,
   Calibrate100,
   DebugPages,
+  BlockGame,
   NUM_ITEMS,
 };
 

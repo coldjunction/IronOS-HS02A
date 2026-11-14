@@ -47,6 +47,7 @@ static void printShortDescription(SettingsItemIndex settingsItemIndex, uint16_t 
 // The value turns to the accent colour while it is being edited. The scrolling help text of
 // the stock layout is not shown.
 extern bool       hs02DebugPagesRequested; // settingsGUI.cpp
+extern bool       hs02BlocksRequested;     // settingsGUI.cpp
 // Set by the home screen when the menu is opened by HOLDING a button: the menu then ignores the
 // buttons until they have been let go, or the held button would start stepping through entries.
 bool              hs02MenuWaitForRelease = false;
@@ -199,6 +200,11 @@ static OperatingMode cardHandleButtons(const ButtonState buttons, guiContext *cx
         saveSettings();
         cxt->transitionMode = TransitionAnimation::None;
         return OperatingMode::DebugMenuReadout;
+      }
+      if (hs02BlocksRequested) { // the "Block game" entry
+        hs02BlocksRequested = false;
+        cxt->transitionMode = TransitionAnimation::None;
+        return OperatingMode::Hs02Blocks;
       }
     } else if (*subEntry == 0) {
       *subEntry           = 1;

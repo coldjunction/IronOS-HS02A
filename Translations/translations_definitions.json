@@ -641,6 +641,12 @@
       "maxLen": 7,
       "maxLen2": 15,
       "description": "Open the debug pages"
+    },
+    {
+      "id": "BlockGame",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "A falling-block game: hold the iron upright, tip down"
     }
   ],
   "gaugeLabels": [

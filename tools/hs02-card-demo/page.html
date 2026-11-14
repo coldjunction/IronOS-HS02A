@@ -21,6 +21,7 @@
   .iron { background:linear-gradient(180deg, #1b222d, #10141b); border:1px solid var(--edge); border-radius:26px; padding:18px 18px 16px;
           box-shadow:0 24px 60px -30px #000, inset 0 1px 0 #2a3443; }
   .bezel { background:#020304; border-radius:12px; padding:10px; box-shadow:inset 0 0 0 1px #1a1f27, 0 1px 0 #2a3443; }
+  #lcdTall { display:none; width:44%; aspect-ratio:1/2; margin:0 auto; }
   canvas { display:block; width:100%; aspect-ratio:2/1; image-rendering:pixelated; image-rendering:crisp-edges; border-radius:4px; background:#000; }
 
   .keys { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:16px; }
@@ -57,7 +58,7 @@
   <p class="sub">The firmware's real screens and menus, running in your browser. Press the three buttons as you would on the iron; hold one for a long press.</p>
 
   <div class="iron">
-    <div class="bezel"><canvas id="lcd" width="160" height="80" role="img" aria-label="Simulated HS-02A display"></canvas></div>
+    <div class="bezel"><canvas id="lcd" width="160" height="80" role="img" aria-label="Simulated HS-02A display"></canvas><canvas id="lcdTall" width="80" height="160" role="img" aria-label="Simulated HS-02A display, iron held upright"></canvas></div>
     <div class="keys">
       <div class="key"><button id="kDown" data-bit="1" aria-label="Down button">▼ Down</button><div class="does" id="dDown"></div></div>
       <div class="key"><button id="kUp" data-bit="2" aria-label="Up button">▲ Up</button><div class="does" id="dUp"></div></div>
@@ -94,6 +95,7 @@ const DOES = {
   5:  ['Next page', 'Leave', ''],
   7:  ['Lower', 'Higher', 'Done'],
   11: ['No', 'No', 'Yes'],
+  15: ['Right<br><b>With Up, hold</b> leave', 'Left', '<b>Press</b> turn<br><b>Hold</b> drop'],
 };
 const LED_CLASS = { 2: 'led-heating', 3: 'led-hot', 4: 'led-cooling' };
 
@@ -102,6 +104,9 @@ let held = 0, moved = 0, tipOut = false, soundOn = true;
 let snapshot = null, stackTop = 0, log = [], cursor = 0, pendingDelay = FRAME_MS, timer = null;
 let shownMode = -1, shownLed = -1;
 const ctx = $('lcd').getContext('2d'), image = ctx.createImageData(160, 80);
+// The block game is played with the iron upright, tip down: its picture is shown turned a quarter.
+const ctxTall = $('lcdTall').getContext('2d'), imageTall = ctxTall.createImageData(80, 160);
+let shownTall = false;
 const mem8 = () => new Uint8Array(ex.memory.buffer);
 const view = () => new DataView(ex.memory.buffer);
 
@@ -138,9 +143,24 @@ function present() {
     const c = v.getUint16(panel + i * 2, true), o = i * 4;
     d[o] = ((c >> 11) & 31) * 255 / 31; d[o + 1] = ((c >> 5) & 63) * 255 / 63; d[o + 2] = (c & 31) * 255 / 31; d[o + 3] = 255;
   }
-  ctx.putImageData(image, 0, 0);
   const backlight = v.getUint8(s + 10), led = v.getUint8(s + 11), mode = v.getUint8(s + 12);
-  $('lcd').style.filter = backlight ? `brightness(${(0.45 + 0.55 * Math.min(backlight, 100) / 100).toFixed(2)})` : 'brightness(0)';
+  const tall = mode === 15;
+  if (tall !== shownTall) {
+    shownTall = tall;
+    $('lcd').style.display = tall ? 'none' : 'block';
+    $('lcdTall').style.display = tall ? 'block' : 'none';
+  }
+  if (tall) { // upright (x, y) is the lying display's (159 - y, x): the tip end is at the bottom
+    const t = imageTall.data;
+    for (let y = 0; y < 160; y++) for (let x = 0; x < 80; x++) {
+      const from = (x * 160 + (159 - y)) * 4, to = (y * 80 + x) * 4;
+      t[to] = d[from]; t[to + 1] = d[from + 1]; t[to + 2] = d[from + 2]; t[to + 3] = 255;
+    }
+    ctxTall.putImageData(imageTall, 0, 0);
+  } else {
+    ctx.putImageData(image, 0, 0);
+  }
+  $('lcdTall').style.filter = $('lcd').style.filter = backlight ? `brightness(${(0.45 + 0.55 * Math.min(backlight, 100) / 100).toFixed(2)})` : 'brightness(0)';
   buzz(v.getUint16(s + 16, true));
   document.body.classList.toggle('lit', v.getUint8(s + 18) === 1);
   if (mode !== shownMode) {

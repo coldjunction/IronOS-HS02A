@@ -63,7 +63,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | `kCal100MinAboveZerouV`, `kCal100MaxuV` | `source/Core/Src/settingsGUI.cpp` | 50, 6000 | not present | Limits in microvolts for the reading that `setCalibrate100()` stores as the 100 °C point: at least 50 above the `CalibrationOffset` setting (below that there is no signal to use) and at most 6000, the most the `Cal100uV` setting holds. Any reading in between is stored. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 45 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 47 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
 
 ## Settings added
 
@@ -442,7 +442,7 @@ New. Calls `saveSettings()` if a save is pending and either `now` is true or the
 
 Changed. Handles the home screen buttons and returns the next operating mode. Called by `drawHomeScreen()` every frame. The card theme adds the following ahead of the upstream `switch`:
 
-- `BUTTON_BOTH_LONG`: on the first frame it starts tune 0; once the buttons have been held for five seconds it starts tune 1. The static `bothHeldSince` records when the hold began.
+- `BUTTON_BOTH_LONG`: once the buttons have been held for five seconds it starts a tune, once per hold, moving on to the next tune, of `hs02TuneCount()` tunes, from one hold to the next (tune 0 first after power-on). Nothing happens before the five seconds are up. The statics `bothHeldSince`, `bothFired` and `nextTune` record when the hold began, whether it has fired, and which tune is next.
 - Any button while a tune plays stops the tune and does nothing else.
 - UP short or DOWN short calls `hs02StepSetTemperature()` with `large` false. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
 - UP held saves a pending set temperature, sets `hs02MenuWaitForRelease` and returns `SettingsMenu`.
@@ -483,6 +483,10 @@ New file, compiled only with `MODEL_HS02` and `HS02_THEME_CARD`. It plays one of
 #### `bool hs02TunePlaying(void)`
 
 Returns true while a tune is playing. Called by `handleHomeButtons()`.
+
+#### `uint8_t hs02TuneCount(void)`
+
+New. Returns the number of tunes in `kTunes` (four: "La Cucaracha", "Korobeiniki", "Ode to Joy", "In the Hall of the Mountain King"). Used by `handleHomeButtons()` to step through them.
 
 #### `void hs02TuneStart(uint8_t tune)`
 
@@ -585,6 +589,31 @@ Changed. In the card theme it calls `drawCardSleep(tipTemp)`. Called by `gui_Sol
 #### `void ui_draw_temperature_change(void)`
 
 Changed. Draws the temperature adjust screen: a sign, the set temperature and the opposite sign. Upstream chooses which sign is on which side from `ReverseButtonTempChangeEnabled` alone. The fork swaps them when that setting and `TEMP_CHANGE_SWAP_DEFAULT` differ, so with the default 1 of the card theme "−" is on the left and "+" on the right until the setting is switched on. Called by `gui_solderingTempAdjust()` every frame.
+
+## `source/Core/Threads/UI/logic/Hs02Blocks.cpp`
+
+New file, compiled only with `MODEL_HS02` and `HS02_THEME_CARD`. A falling-block game drawn on the mono screen, turned a quarter so that the 160 pixel side of the display is the height of the game. It is a mode of its own, `OperatingMode::Hs02Blocks` (15, added to `OperatingModes.h`); `guiHandleDraw()` in `GUIThread.cpp` calls `hs02BlocksFrame()` once per GUI frame while that mode is active. The mode is entered from the card menu: the menu entry `BlockGame` in `advancedMenu[]` calls `setOpenBlocks()` in `settingsGUI.cpp`, which sets the flag `hs02BlocksRequested`, and `cardHandleButtons()` in `SettingsMenu.cpp` turns the flag into the mode change, as it does for the debug pages.
+
+The game state is kept in file-level statics: the field (`field`, one byte per row of 8 columns, 15 rows), the falling piece (`piece`, `pieceX`, `pieceY`), the next shape, the score, a random seed, timers and the previous button states.
+
+#### `OperatingMode hs02BlocksFrame(const ButtonState buttons, guiContext *cxt)`
+
+One frame of the game. It ignores `buttons` and reads the three buttons directly with `getButtonA()` (DOWN, right), `getButtonB()` (UP, left) and `getButtonOK()`, because the decoded button states only report a press on release. `cxt->scratch_state.state1` is 0 on the first frames after the mode was entered; the game starts once all buttons are up. UP or DOWN moves the piece one cell at once and repeats after 250 ms, then every 80 ms. OK going down turns the piece a quarter (`turned()`), trying the positions 0, -1, +1 and -2 cells sideways; OK held for 300 ms makes the piece fall one row per frame, until the piece lands. Otherwise the piece falls one row every 600 ms minus 20 ms per point, not faster than every 120 ms. UP and DOWN held together for one second return `OperatingMode::SettingsMenu` and set `hs02MenuWaitForRelease`. After the game has ended, OK starts a new one. Returns `OperatingMode::Hs02Blocks` otherwise.
+
+#### Helpers (in the anonymous namespace)
+
+| Function | What it does |
+| --- | --- |
+| `uint8_t randomShape()` | A linear congruential generator on `seed`; returns an index into `kShapes` (eight shapes of two to four cells). |
+| `bool fits(const Shape &shape, int8_t x, int8_t y)` | True if every cell of the shape at that position is inside the field and free. |
+| `Shape turned(const Shape &shape)` | The shape turned a quarter: (x, y) becomes (-y, x), moved back so the smallest x and y are 0. |
+| `bool spawn()` | Makes the next shape the falling piece at the top, draws a new next shape, and returns whether it has room. |
+| `void newGame()` | Clears the field and the score, seeds the generator from the tick count, and spawns the first piece. |
+| `void lockPiece()` | Writes the piece into the field, removes full rows (one point each, with a beep), and spawns the next piece; the game ends if that one does not fit. |
+| `void beep(uint16_t hz, uint8_t frames)` | Sounds the buzzer at `hz` hertz for that many frames through `setBuzzerTone()`, which is silent when `BuzzerEnabled` is 0. |
+| `void block(uint8_t x, uint8_t y, uint8_t width, uint8_t height)` | Draws a filled rectangle given in upright pixels (80 wide, 160 high) onto the lying display with `Display::drawFilledRect()`. With `Display::getRotation()` false the upright bottom is the left end of the display, otherwise the right end, so "down" is towards the tip in both orientations. |
+| `void drawNumber(uint16_t value, uint8_t x, uint8_t y)` | Draws three digits from the 3 x 5 pixel table `kDigits`, each pixel 3 x 3. |
+| `void draw(bool showScore)` | Draws the score, the next piece, the walls, the field and the falling piece, and asks for the accent colour on the score strip with `LCD::setMonoRegions()` (right-handed orientation only: the colour regions are whole display columns counted from the left). |
 
 ## `source/Core/Threads/UI/logic/TemperatureAdjust.cpp`
 

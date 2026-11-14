@@ -7,7 +7,8 @@ bool showExitMenuTransition = false;
 
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
 // Easter egg, see utils/Hs02Tune.cpp
-void hs02TuneStart(uint8_t tune);
+void    hs02TuneStart(uint8_t tune);
+uint8_t hs02TuneCount(void);
 void hs02TuneStop(void);
 bool hs02TunePlaying(void);
 
@@ -63,15 +64,22 @@ OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt) {
     cxt->scratch_state.state1 = 1;
   }
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
-  // UP and DOWN held together: the first tune. Still held five seconds later: the second.
+  // UP and DOWN held together for five seconds: a tune. Nothing happens before that, so a brief
+  // press of both does not set it off. Each time it is the next of the tunes, starting with
+  // the first after power-on.
+  // (BUTTON_BOTH_LONG is first reported 400 ms into the hold, hence 4.6 s from then.)
   static TickType_t bothHeldSince = 0;
+  static bool       bothFired     = false;
+  static uint8_t    nextTune      = 0;
   if (buttons == BUTTON_BOTH_LONG) {
     const TickType_t now = xTaskGetTickCount();
     if (bothHeldSince == 0) {
       bothHeldSince = now | 1;
-      hs02TuneStart(0);
-    } else if ((now - bothHeldSince) >= 5 * TICKS_SECOND) {
-      hs02TuneStart(1);
+      bothFired     = false;
+    } else if (!bothFired && (now - bothHeldSince) >= 5 * TICKS_SECOND - 4 * TICKS_100MS) {
+      bothFired = true;
+      hs02TuneStart(nextTune);
+      nextTune = (uint8_t)((nextTune + 1) % hs02TuneCount());
     }
     return OperatingMode::HomeScreen;
   }
