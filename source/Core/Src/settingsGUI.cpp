@@ -1123,7 +1123,7 @@ static bool displayAnimationOptions(void) { return getSettingValue(SettingsOptio
 static void displayAnimationLoop(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::AnimationLoop)); }
 
 static void displayBrightnessLevel(void) {
-  Display::printNumber((getSettingValue(SettingsOptions::DisplayBrightness) / BRIGHTNESS_STEP + 1), 1, FontStyle::LARGE);
+  Display::printNumber((getSettingValue(SettingsOptions::DisplayBrightness) / BRIGHTNESS_STEP + 1), 2, FontStyle::LARGE);
   // While not optimal to apply this here, it is _very_ convenient
   Display::setBrightness(getSettingValue(SettingsOptions::DisplayBrightness));
 }

@@ -63,8 +63,8 @@ The three buttons, left to right as you hold the iron with the screen facing you
 |---|---|
 | Press Up / Down | Target temperature up / down by "Temp change short" (default 5 degrees). Saved two seconds later. |
 | Press OK | Start heating |
-| Hold Up | Open the settings menu |
-| Hold Down | Target down by "Temp change long" (default 10 degrees), repeating, faster the longer it is held |
+| Hold Up or Down | Target up / down by "Temp change long" (default 10 degrees), repeating, faster the longer it is held |
+| Hold OK | Open the settings menu |
 | Hold Up and Down together for 5 seconds | Play a tune (see [Tunes](#tunes)) |
 
 ### Heating screen
@@ -178,7 +178,7 @@ hall sensor support.
 | Scrolling speed | Speed of long texts that scroll across the screen. |
 | Swap + - keys | Swaps Down and Up for temperature changes on the ready and heating screens. |
 | Anim. speed, Anim. loop | From IronOS, for menu icon animations. The HS-02 menu has no icons, so they have no effect. |
-| Screen brightness | Backlight level. |
+| Screen brightness | Backlight level, 1 (dim) to 10 (full). |
 | Invert screen | Inverts the display colours. |
 | Detailed idle screen, Detailed solder screen | From IronOS. The HS-02 colour screens do not have a detailed variant, so they have no effect on the ready screen. |
 | Buzzer beep (new) | The beep at target temperature, and the tunes. |

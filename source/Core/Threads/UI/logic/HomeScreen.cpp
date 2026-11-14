@@ -16,12 +16,12 @@ extern bool hs02MenuWaitForRelease; // SettingsMenu.cpp
 
 // Card theme home screen buttons:
 //   UP / DOWN short   set temperature up / down by the "Temp change short" setting
-//   UP held           settings menu
-//   DOWN held         set temperature down by the "Temp change long" setting, repeating,
+//   UP / DOWN held    set temperature up / down by the "Temp change long" setting, repeating,
 //                     faster the longer it is held: the settings menu's pacing. The number
 //                     changes on this screen. (The full-screen temperature screen of the port
 //                     is not opened from anywhere in this theme.)
 //   OK                start soldering
+//   OK held           settings menu
 // A changed set temperature is written to flash two seconds after the last press, or when
 // leaving the screen, so that stepping through values does not wear the flash.
 // The heating screen (Soldering.cpp) steps the target with the same two functions.
@@ -90,17 +90,17 @@ OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt) {
   }
   hs02SaveSetTemperatureIfDue(false);
   static uint32_t repeatTimer = 0, repeatAcceleration = 0; // as in the card menu (SettingsMenu.cpp)
-  if (buttons != BUTTON_F_LONG) {
+  if (buttons != BUTTON_F_LONG && buttons != BUTTON_B_LONG) {
     repeatTimer        = 0;
     repeatAcceleration = 0;
-  } else { // DOWN held: it is "-" unless "Swap + - keys" is on
+  } else { // DOWN or UP held: UP is "+" unless "Swap + - keys" is on
     if (xTaskGetTickCount() + repeatAcceleration > repeatTimer + PRESS_ACCEL_INTERVAL_MAX) {
       repeatTimer = xTaskGetTickCount();
       repeatAcceleration += PRESS_ACCEL_STEP;
       if ((PRESS_ACCEL_INTERVAL_MAX - repeatAcceleration) < PRESS_ACCEL_INTERVAL_MIN) {
         repeatAcceleration = PRESS_ACCEL_INTERVAL_MAX - PRESS_ACCEL_INTERVAL_MIN;
       }
-      hs02StepSetTemperature(getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0, true);
+      hs02StepSetTemperature((buttons == BUTTON_B_LONG) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0), true);
     }
     return OperatingMode::HomeScreen;
   }
@@ -109,7 +109,7 @@ OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt) {
     hs02StepSetTemperature((buttons == BUTTON_B_SHORT) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0), false);
     return OperatingMode::HomeScreen;
   }
-  if (buttons == BUTTON_B_LONG) { // UP held: settings menu
+  if (buttons == BUTTON_OK_LONG) { // OK held: settings menu
     hs02SaveSetTemperatureIfDue(true);
     hs02MenuWaitForRelease = true; // the button is still down when the menu takes over
     cxt->transitionMode    = TransitionAnimation::None;

@@ -42,6 +42,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 
 | Constant | Value | Upstream | What it controls |
 | --- | --- | --- | --- |
+| `MIN_BRIGHTNESS`, `BRIGHTNESS_STEP` | 6, 11 | 1, 13 | Lowest value and step of the `DisplayBrightness` setting. With the unchanged maximum of 105 this gives ten values, which `displayBrightnessLevel()` shows as levels 1 to 10 (value / step + 1); upstream has nine. |
 | `BUZZER_VOLUME` | 6 | 0 | Compare value of the buzzer timer (TIM2) while the buzzer sounds. Must be below 20 (`static_assert` in `setBuzzer()`). 0 is silent. |
 | `TEMP_CHANGE_SWAP_DEFAULT` | 1 | not present | Turns + and − round on the temperature adjust screen by default. The setting `ReverseButtonTempChangeEnabled` swaps them back. `TemperatureAdjust.cpp` and `draw_temperature_change.cpp` default it to 0 when a board does not define it. |
 | `CALIBRATION_OFFSET` | 0 | 900 | Default of the `CalibrationOffset` setting: the tip amplifier's reading at zero temperature difference, in microvolts. The comment says that on the HS-02A it measured as 0 (a cold tip reads 0 ADC counts), that the stock firmware's curve starts there too, and that with 900 everything from room temperature to about 55 °C read as 25 °C. It adds that a unit whose amplifier does have a positive offset reads a cold tip too warm until the CJC calibration has been run. |
@@ -63,7 +64,7 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | `kCal100MinAboveZerouV`, `kCal100MaxuV` | `source/Core/Src/settingsGUI.cpp` | 50, 6000 | not present | Limits in microvolts for the reading that `setCalibrate100()` stores as the 100 °C point: at least 50 above the `CalibrationOffset` setting (below that there is no signal to use) and at most 6000, the most the `Cal100uV` setting holds. Any reading in between is stored. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 49 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 50 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first standard debug page. |
 
 ## Settings added
 
@@ -426,7 +427,7 @@ Changed. The settings menu's per-frame function, called by `guiHandleDraw()` in 
 
 ## `source/Core/Threads/UI/logic/HomeScreen.cpp`
 
-The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen buttons are: UP or DOWN short changes the set temperature, UP held opens the settings menu, DOWN held lowers the set temperature in large steps on the spot, OK starts soldering, and UP and DOWN held together plays a tune.
+The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen buttons are: UP or DOWN short changes the set temperature, UP or DOWN held changes it in large steps on the spot, OK starts soldering, OK held opens the settings menu, and UP and DOWN held together plays a tune.
 
 The file-level static `hs02SetTempSaveAt` holds the tick at which a changed set temperature is due to be written to flash, or 0 if nothing is pending.
 
@@ -445,8 +446,8 @@ Changed. Handles the home screen buttons and returns the next operating mode. Ca
 - `BUTTON_BOTH_LONG`: once the buttons have been held for five seconds it starts a tune, once per hold, moving on to the next tune, of `hs02TuneCount()` tunes, from one hold to the next (tune 0 first after power-on). Nothing happens before the five seconds are up. The statics `bothHeldSince`, `bothFired` and `nextTune` record when the hold began, whether it has fired, and which tune is next.
 - Any button while a tune plays stops the tune and does nothing else.
 - UP short or DOWN short calls `hs02StepSetTemperature()` with `large` false. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
-- UP held saves a pending set temperature, sets `hs02MenuWaitForRelease` and returns `SettingsMenu`.
-- DOWN held: calls `hs02StepSetTemperature()` with `large` true (direction reversed when `ReverseButtonTempChangeEnabled` is on) and repeats while the button is held, with the card menu's pacing kept in two statics, `repeatTimer` and `repeatAcceleration`. The mode stays `HomeScreen`. The temperature adjust screen is not opened from anywhere in the card theme.
+- OK held saves a pending set temperature, sets `hs02MenuWaitForRelease` and returns `SettingsMenu`.
+- UP held or DOWN held: calls `hs02StepSetTemperature()` with `large` true (UP raises, DOWN lowers; reversed when `ReverseButtonTempChangeEnabled` is on) and repeats while the button is held, with the card menu's pacing kept in two statics, `repeatTimer` and `repeatAcceleration`. The mode stays `HomeScreen`. The temperature adjust screen is not opened from anywhere in the card theme.
 - Any other press saves a pending set temperature and falls through to the upstream handling, where OK short starts soldering.
 
 ## `source/Core/Threads/UI/logic/Soldering.cpp`

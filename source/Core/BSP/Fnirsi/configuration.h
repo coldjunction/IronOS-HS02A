@@ -66,10 +66,10 @@
  * LCD Brightness
  * Range 0 - 127; however, thee is no noticable increase over 100.
  */
-#define MIN_BRIGHTNESS     1    // Min LCD brightness selectable
+#define MIN_BRIGHTNESS     6    // Min LCD brightness selectable (level 1 of 10; the port: 1)
 #define MAX_BRIGHTNESS     105  // Max LCD brightness selectable
 
-#define BRIGHTNESS_STEP    13   // LCD brightness increment
+#define BRIGHTNESS_STEP    11   // LCD brightness increment: 6, 17, ... 105 are ten levels, shown as 1 to 10 (the port: 13, nine levels)
 #define DEFAULT_BRIGHTNESS 105  // default LCD brightness
 
 // Screen and menu theme. HS02_THEME_CARD selects the card theme: card-style home screens, a

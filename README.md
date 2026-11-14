@@ -44,8 +44,8 @@ You can try all of this in the [browser demo](https://coldjunction.github.io/Iro
 |---|---|
 | Start heating | Press **OK** |
 | Change the target temperature | Press **Up** or **Down** |
-| Lower the target quickly | Hold **Down** |
-| Open the settings | Hold **Up** |
+| Change it quickly | Hold **Up** or **Down** |
+| Open the settings | Hold **OK** |
 
 ### Heating screen
 

@@ -3,6 +3,13 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 50
+
+- **Ready screen: hold OK for the settings, hold Up to raise the target.** Holding Up used to
+  open the settings; it now raises the target quickly, the way holding Down lowers it.
+- **Screen brightness has ten levels, 1 to 10** (it had nine). A stored value of the old
+  lowest level is reset to full brightness.
+
 ## Build 49
 
 - **The block game is now the "Super High Intensity Block Simulator"**, with the full name
