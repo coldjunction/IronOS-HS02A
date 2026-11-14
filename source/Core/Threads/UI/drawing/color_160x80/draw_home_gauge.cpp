@@ -318,8 +318,9 @@ void drawCardFrame(const char *label) {
   drawWashTextEmphasis(label, 13, 9, kAccent);
 }
 
-// Right column: a grey caption over the target temperature, in medium digits in the accent
-// colour, without leading zeros and followed by a small degree ring.
+// Right column: a grey caption (three letters at most: the supply voltage shares its row) over
+// the target temperature, in medium digits in the accent colour, without leading zeros and
+// followed by a small degree ring.
 void drawCardTarget(const char *caption, TemperatureType_t target) {
   constexpr uint8_t kLeft = 104, kDigitsY = 23;
   drawWashTextEmphasis(caption, kLeft, 8, kMuted);
@@ -366,6 +367,12 @@ void drawCardValue(uint32_t value, char unit, uint8_t x, uint8_t y) {
 
 // Bottom right, beside the bar.
 void drawCardFooter(uint32_t value, char unit) { drawCardValue(value, unit, kCardFooterX, kCardFooterY); }
+
+// Top right corner of every card screen: the supply voltage, right-aligned (glyphs are 8 wide).
+void drawCardVoltage() {
+  const uint32_t volts = cardVolts();
+  drawCardValue(volts, 'V', 156 - 8 * (digitCount(volts) + 1), 8);
+}
 
 // The reading as shown: a change of one degree is only taken over once it has lasted half a
 // second, so a reading on the edge between two values does not flicker. Two degrees or more
@@ -422,7 +429,8 @@ void drawCardNoTip() {
     Display::fillRectColor(88, 33, 2, 14, kAccent); // seated
   }
   drawWashText("INSERT TIP", 13, 58, kMuted);
-  drawCardFooter(cardVolts(), 'V');
+  drawCardVoltage();
+  drawCardFooter(0, 'W');
 }
 
 void drawCardIdle(TemperatureType_t tipTemp) {
@@ -436,7 +444,8 @@ void drawCardIdle(TemperatureType_t tipTemp) {
   drawCardTemperature(cardSteadyTemperature(getSettingValue(SettingsOptions::TemperatureInF) ? TipThermoModel::getTipInF() : tipTemp));
   drawCardTarget(Hs02WashFont::kLabels.set, getSettingValue(SettingsOptions::SolderingTemp));
   drawCardPowerBar(0);
-  drawCardFooter(cardVolts(), 'V');
+  drawCardVoltage();
+  drawCardFooter(0, 'W'); // the heater is off on this screen
 }
 
 void drawCardSoldering(bool boostModeOn) {
@@ -444,19 +453,20 @@ void drawCardSoldering(bool boostModeOn) {
   const uint32_t x10Watt = x10WattHistory.average();
   drawCardFrame(boostModeOn ? Hs02WashFont::kLabels.boost : "HEATING");
   drawCardTemperature(cardSteadyTemperature(getSettingValue(SettingsOptions::TemperatureInF) ? TipThermoModel::getTipInF() : TipThermoModel::getTipInC()));
-  drawCardTarget("TARGET", getSettingValue(boostModeOn ? SettingsOptions::BoostTemp : SettingsOptions::SolderingTemp));
+  drawCardTarget(Hs02WashFont::kLabels.set, getSettingValue(boostModeOn ? SettingsOptions::BoostTemp : SettingsOptions::SolderingTemp));
   drawCardPowerBar(x10Watt);
   drawCardFooter((cardSteadyWatts(x10Watt) + 5) / 10, 'W');
-  drawCardValue(cardVolts(), 'V', 104, 46); // supply voltage, under the target
+  drawCardVoltage();
 }
 
 void drawCardSleep(TemperatureType_t tipTemp) {
   Display::setColorPalette(cardPaletteFor(kCardSleepPalette, SettingsOptions::ColourSleep));
   drawCardFrame(Hs02WashFont::kLabels.sleep);
   drawCardTemperature(cardSteadyTemperature(tipTemp));
-  drawWashTextEmphasis("Zzz", kCardColumn, 9, kAccent);
-  drawWashText("IDLE", kCardColumn, 32, kMuted);
-  drawCardFooter(cardVolts(), 'V');
+  drawWashTextEmphasis("Zzz", kCardColumn, 24, kAccent);
+  drawWashText("IDLE", kCardColumn, 42, kMuted);
+  drawCardVoltage();
+  drawCardFooter((cardSteadyWatts(x10WattHistory.average()) + 5) / 10, 'W'); // what holding the sleep temperature takes
 }
 #endif // HS02_THEME_CARD
 } // namespace

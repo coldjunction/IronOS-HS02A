@@ -20,9 +20,10 @@ extern bool hs02MenuWaitForRelease; // SettingsMenu.cpp
 //   OK                start soldering
 // A changed set temperature is written to flash two seconds after the last press, or when
 // leaving the screen, so that stepping through values does not wear the flash.
+// The heating screen (Soldering.cpp) steps the target with the same two functions.
 static TickType_t hs02SetTempSaveAt = 0;
 
-static void hs02StepSetTemperature(bool up) {
+void hs02StepSetTemperature(bool up) {
   const bool fahrenheit = getSettingValue(SettingsOptions::TemperatureInF);
   int16_t    step       = getSettingValue(SettingsOptions::TempChangeShortStep);
   if (step < 5) {
@@ -42,7 +43,7 @@ static void hs02StepSetTemperature(bool up) {
   hs02SetTempSaveAt = xTaskGetTickCount() + 2 * TICKS_SECOND;
 }
 
-static void hs02SaveSetTemperatureIfDue(bool now) {
+void hs02SaveSetTemperatureIfDue(bool now) {
   if (hs02SetTempSaveAt != 0 && (now || (int32_t)(xTaskGetTickCount() - hs02SetTempSaveAt) >= 0)) {
     hs02SetTempSaveAt = 0;
     saveSettings();

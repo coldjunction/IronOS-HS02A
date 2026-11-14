@@ -35,7 +35,7 @@ SUBSET_RANGE = (0x20, 0x52F)
 CELL_W, CELL_H = 8, 16
 
 # Fixed ASCII the drawing code uses besides the labels (digits, units, "DC", "TP").
-# "AGEILZz" are for the card theme's fixed English text (TARGET, IDLE, Zzz).
+# "AGEILZz" are for the card theme's fixed English text (HEATING, IDLE, Zzz, INSERT TIP).
 BASE_CHARS = " 0123456789.DCVTPWms" "AGEILZz" "NORS" "H"  # NORS: "NO TIP" / "INSERT TIP", H: "HEATING"
 
 LABEL_IDS = ("Ready", "Set", "Boost", "Sleep")

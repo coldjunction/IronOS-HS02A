@@ -45,20 +45,21 @@ uint32_t fallbackTipTempCx10(uint32_t tipuV) {
   // Absolute tip temperatures measured on one HS-02A without usable factory calibration.
   //
   // tipuV arrives with the calibration offset (the amplifier's reading at zero temperature
-  // difference) already removed. The points were measured with the DEFAULT offset removed, so
-  // they are kept here as amplifier-input microvolts (measured value + CALIBRATION_OFFSET) and
-  // the current offset is added back before comparing. That way a CJC calibration, which
-  // replaces the default by the unit's real zero reading, moves only the cold end of the curve
-  // and leaves the measured points where they were.
+  // difference) already removed. The points were measured by the port's author with an offset
+  // of 900 uV removed (kMeasuredWithOffset), so they are kept here as amplifier-input
+  // microvolts (measured value + 900) and the current offset is added back before comparing.
+  // That way the offset setting, whatever it is, moves only the cold end of the curve and
+  // leaves the measured points where they were.
   //
   // The cold end: at the zero reading the tip is as warm as the point it plugs into, which no
-  // sensor on this board measures; 25C is assumed, as the stock firmware does. With the default
-  // offset, which is larger than the real zero reading on at least one unit, everything from
-  // room temperature up to roughly 50-60C reads as 25C until a CJC calibration has been run.
+  // sensor on this board measures; 25C is assumed, as the stock firmware does. An offset larger
+  // than the unit's real zero reading makes everything from room temperature up to that reading
+  // show as 25C (with the port's old default of 900 uV: up to roughly 55C).
+  constexpr uint32_t kMeasuredWithOffset = 900;
   const uint32_t offset = getSettingValue(SettingsOptions::CalibrationOffset);
   const uint32_t inputuV = tipuV + offset;
-  constexpr uint32_t p223 = 5400 + CALIBRATION_OFFSET, p273 = 6680 + CALIBRATION_OFFSET, p350 = 8370 + CALIBRATION_OFFSET;
-  constexpr uint32_t p400 = 10540 + CALIBRATION_OFFSET, p450 = 12090 + CALIBRATION_OFFSET, p500 = 13640 + CALIBRATION_OFFSET;
+  constexpr uint32_t p223 = 5400 + kMeasuredWithOffset, p273 = 6680 + kMeasuredWithOffset, p350 = 8370 + kMeasuredWithOffset;
+  constexpr uint32_t p400 = 10540 + kMeasuredWithOffset, p450 = 12090 + kMeasuredWithOffset, p500 = 13640 + kMeasuredWithOffset;
   if (inputuV <= p223) {
     if (offset >= p223) {
       return 250;

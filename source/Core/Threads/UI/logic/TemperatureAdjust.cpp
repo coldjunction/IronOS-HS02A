@@ -14,6 +14,13 @@ OperatingMode gui_solderingTempAdjust(const ButtonState buttonIn, guiContext *cx
   ButtonState buttons                = buttonIn;
   if (*waitForRelease == 0) {
     // When we first enter we wait for the user to release buttons before enabling changes
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+    // Card theme: this screen is opened by holding UP or DOWN, and the same hold carries on
+    // changing the temperature, without letting go first.
+    if (buttons == BUTTON_B_LONG || buttons == BUTTON_F_LONG) {
+      (*waitForRelease)++;
+    } else
+#endif
     if (buttons != BUTTON_NONE) {
       buttons = BUTTON_NONE;
     } else {

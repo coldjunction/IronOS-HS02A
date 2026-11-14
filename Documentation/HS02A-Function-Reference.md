@@ -4,7 +4,7 @@ This document lists every function, method, compile-time switch, tuning constant
 
 Terms used below:
 
-- **Card theme**: the screen and menu variant compiled when `HS02_THEME_CARD` is defined. **Wash theme**: the port's own layout, compiled when it is not.
+- **Card theme**: this fork's screens and menus, the code guarded by `HS02_THEME_CARD`. The Makefile defines `HS02_THEME_CARD` for every HS02 build (see "Build switches"), so this code is always compiled.
 - **Buttons**: the iron has three, left to right DOWN, UP, OK. In `ButtonState` values DOWN is `BUTTON_F_*`, UP is `BUTTON_B_*`, OK is `BUTTON_OK_*`, and DOWN and UP held together is `BUTTON_BOTH_LONG`.
 - **GUI frame**: one pass of the loop in `startGUITask()`, which runs every 40 ms (`TICKS_100MS * 4 / 10`).
 - **Mono screen**: a screen drawn into the 1 bit per pixel buffer (menus, warnings, debug pages). **Colour screen**: home, soldering and sleep, drawn into the 2 bit per pixel buffer with a four-entry palette.
@@ -12,39 +12,40 @@ Terms used below:
 
 ## Build switches
 
-### Variant defines
+### Theme define
 
-All three are commented out in `source/Core/BSP/Fnirsi/configuration.h`. Define them there or pass `-D<name>` to the compiler.
+One firmware is built. `source/Makefile` adds `-DHS02_THEME_CARD` to `GLOBAL_DEFINES` whenever `model` is `HS02`. The comment in `source/Core/BSP/Fnirsi/configuration.h` says the define has to come from the compiler command line and not from that header, because some files test it before they include the header.
 
-| Define | Default | What it selects |
+| Define | Set by | What it selects |
 | --- | --- | --- |
-| `HS02_THEME_CARD` | not defined | The card theme: card-style home, soldering and sleep screens (`draw_home_gauge.cpp`), a three-row settings menu with a button hint row (`SettingsMenu.cpp`, `settingsGUI.cpp`), coloured output of mono screens and a partial menu slide (`LCD.hpp`, `LCD.cpp`, `Display.cpp`), no boot logo (`BSP.cpp`, `GUIThread.cpp`), a different home screen button layout and the buzzer tunes (`HomeScreen.cpp`, `Hs02Tune.cpp`), the HS-02 debug pages shown first (`DebugMenu.cpp`), a larger GUI task stack (`main.cpp`), `BUZZER_VOLUME` 6 and `TEMP_CHANGE_SWAP_DEFAULT` 1. Most uses are combined with `LCD_160x80` or `MODEL_HS02`. |
-| `HS02_FACTORY_PID` | not defined | PID gains equivalent to the stock FNIRSI control law, which has no integral term. Takes precedence if `HS02_ORIGINAL_PID` is also defined. |
-| `HS02_ORIGINAL_PID` | not defined | The PID gains upstream uses (40 / 700 / 8000). |
-| neither PID define | active | The "hybrid" profile: a proportional gain close to stock plus an integral term, working on the 0.1 °C reading. |
+| `HS02_THEME_CARD` | `source/Makefile`, for every HS02 build | The card theme: card-style home, soldering and sleep screens (`draw_home_gauge.cpp`), a three-row settings menu with a button hint row (`SettingsMenu.cpp`, `settingsGUI.cpp`), coloured output of mono screens and a partial menu slide (`LCD.hpp`, `LCD.cpp`, `Display.cpp`), no boot logo (`BSP.cpp`, `GUIThread.cpp`), the home screen and soldering screen button layouts and the buzzer tunes (`HomeScreen.cpp`, `Soldering.cpp`, `Hs02Tune.cpp`), the HS-02 debug pages shown first (`DebugMenu.cpp`), a larger GUI task stack (`main.cpp`), `BUZZER_VOLUME` 6 and `TEMP_CHANGE_SWAP_DEFAULT` 1. Most uses are combined with `LCD_160x80` or `MODEL_HS02`. |
 
-### PID profiles (`configuration.h`)
+The port's own layout (the "wash" screens) is still in the source, in the branches that are compiled when `HS02_THEME_CARD` is not defined. It is not built, and the comment in `configuration.h` calls it untested in this fork. This document describes the code that is built; where it says "in the card theme" or "with `HS02_THEME_CARD`", it names the guard around that code.
 
-The PID output is in tenths of a watt. According to the comment in `configuration.h`, `TIP_PID_KP` 13 corresponds to 1.30 W per °C and `TIP_PID_KD` is in tenths of a watt times milliseconds per °C. The integral accumulates error times `TIP_PID_KI` times seconds, and the sum is divided by 100 before it is added to the output (see `PID::update`).
+### PID constants (`configuration.h`)
 
-| Constant | Hybrid (default) | `HS02_FACTORY_PID` | `HS02_ORIGINAL_PID` | What it controls |
-| --- | --- | --- | --- | --- |
-| `TIP_PID_KP` | 20 | 13 | 40 | Proportional gain. |
-| `TIP_PID_KI` | 700 | 0 | 700 | Integral gain. 0 switches the integral term off. |
-| `TIP_PID_KD` | 12000 | 380 | 8000 | Derivative gain. |
-| `TIP_PID_INTEGRAL_LIMIT_SCALE` | 60 | 30 (unused with `KI` 0) | 30 | Clamp on the integral sum, as a multiple of the current maximum output. |
-| `TIP_PID_INTEGRAL_ZONE` | 30 | not set (0) | not set (0) | The integral only accumulates while the tip is within this many °C of the set point. 0 means always. |
-| `TIP_PID_INTEGRAL_MAX_RATE` | 8 | not set (0) | not set (0) | The integral only accumulates while the reading approaches the set point more slowly than this many °C per second. 0 means always. |
-| `TIP_PID_INPUT_SCALE` | 10 | 10 | not set (1) | Steps per °C of the temperatures handed to the PID: 1 is whole degrees, 10 is the 0.1 °C reading. |
+There is one set of PID constants. The PID output is in tenths of a watt. `TIP_PID_KP` is in tenths of a watt per °C and `TIP_PID_KD` in tenths of a watt times milliseconds per °C. The integral accumulates error times `TIP_PID_KI` times seconds, and the sum is divided by 100 before it is added to the output (see `PID::update`).
 
-`TIP_PID_INTEGRAL_ZONE`, `TIP_PID_INTEGRAL_MAX_RATE` and `TIP_PID_INPUT_SCALE` are new in this fork. `PIDThread.cpp` gives them the defaults 0, 0 and 1 when a board does not define them, so other boards behave as before. The comment in `configuration.h` states that the hybrid values were chosen on a tip model and have not yet been confirmed on the iron.
+| Constant | Value | Upstream | What it controls |
+| --- | --- | --- | --- |
+| `TIP_PID_KP` | 20 | 40 | Proportional gain. |
+| `TIP_PID_KI` | 700 | 700 | Integral gain. |
+| `TIP_PID_KD` | 12000 | 8000 | Derivative gain. |
+| `TIP_PID_INTEGRAL_LIMIT_SCALE` | 60 | 30 | Clamp on the integral sum, as a multiple of the current maximum output. |
+| `TIP_PID_INTEGRAL_ZONE` | 30 | not present | The integral only accumulates while the tip is within this many °C of the set point. 0 means always. |
+| `TIP_PID_INTEGRAL_MAX_RATE` | 8 | not present | The integral only accumulates while the reading approaches the set point more slowly than this many °C per second. 0 means always. |
+| `TIP_PID_INPUT_SCALE` | 10 | not present | Steps per °C of the temperatures handed to the PID: 1 is whole degrees, 10 is the 0.1 °C reading. |
+
+`TIP_PID_INTEGRAL_ZONE`, `TIP_PID_INTEGRAL_MAX_RATE` and `TIP_PID_INPUT_SCALE` are new in this fork. `PIDThread.cpp` gives them the defaults 0, 0 and 1 when a board does not define them, so other boards behave as before. The comment in `configuration.h` states that the values were chosen on a tip model (`tools/hs02-pid-sim`), that without `TIP_PID_INTEGRAL_MAX_RATE` the iron overshot by 4 °C at 320 °C and by 6 °C on a boost to 450 °C, and that the effect of that constant has not yet been measured on the iron.
 
 ### Other constants in `configuration.h`
 
 | Constant | Value | Upstream | What it controls |
 | --- | --- | --- | --- |
-| `BUZZER_VOLUME` | 6 with `HS02_THEME_CARD`, otherwise 0 | 0 | Compare value of the buzzer timer (TIM2) while the buzzer sounds. Must be below 20 (`static_assert` in `setBuzzer()`). 0 is silent. |
-| `TEMP_CHANGE_SWAP_DEFAULT` | 1 with `HS02_THEME_CARD`, otherwise not defined | not present | Turns + and − round on the temperature adjust screen by default. The setting `ReverseButtonTempChangeEnabled` swaps them back. `TemperatureAdjust.cpp` and `draw_temperature_change.cpp` default it to 0. |
+| `BUZZER_VOLUME` | 6 | 0 | Compare value of the buzzer timer (TIM2) while the buzzer sounds. Must be below 20 (`static_assert` in `setBuzzer()`). 0 is silent. |
+| `TEMP_CHANGE_SWAP_DEFAULT` | 1 | not present | Turns + and − round on the temperature adjust screen by default. The setting `ReverseButtonTempChangeEnabled` swaps them back. `TemperatureAdjust.cpp` and `draw_temperature_change.cpp` default it to 0 when a board does not define it. |
+| `CALIBRATION_OFFSET` | 0 | 900 | Default of the `CalibrationOffset` setting: the tip amplifier's reading at zero temperature difference, in microvolts. The comment says that on the HS-02A it measured as 0 (a cold tip reads 0 ADC counts), that the stock firmware's curve starts there too, and that with 900 everything from room temperature to about 55 °C read as 25 °C. It adds that a unit whose amplifier does have a positive offset reads a cold tip too warm until the CJC calibration has been run. |
+| `MIN_CALIBRATION_OFFSET` | 0 | 100 | Lower limit of the `CalibrationOffset` setting, in microvolts. |
 | `DC_MINIMUM_VOLTAGE_X10` | 40 | not present | Undervoltage floor in tenths of a volt (4.0 V) for a DC supply when the setting `LowVoltageAllowed` is on. Read by `lookupVoltageLevel()`. |
 | `ANIMATION_SPEED` | `settingOffSpeed_t::FAST` | `settingOffSpeed_t::MEDIUM` | Default of the `AnimationSpeed` setting. |
 | `POWER_LIMIT` | 100 | 60 | Default of the `PowerLimit` setting, in watts. |
@@ -56,11 +57,11 @@ The PID output is in tenths of a watt. According to the comment in `configuratio
 | Constant | File | Value | Upstream | What it controls |
 | --- | --- | --- | --- | --- |
 | `hs02HighTempRampStartDegC` | `source/Core/Threads/PIDThread.cpp` | 500 | 350 | Set point in °C above which `startPIDTask()` walks the target up in steps. The target is capped at 450 °C before this test, so the ramp no longer applies and boost and high set points take effect at once. `hs02HighTempRampStepTicks` is unchanged and unused while the start is above `MAX_TEMP_C`. |
-| `GUITaskStackSize` | `source/Core/Src/main.cpp` | `(1024 + 256) / 2` with `HS02_THEME_CARD`, otherwise `1024 / 2` | `1024 / 2` | Length of `GUITaskBuffer`, the GUI task's stack, in 32-bit words. |
+| `GUITaskStackSize` | `source/Core/Src/main.cpp` | `(1024 + 256) / 2` | `1024 / 2` | Length of `GUITaskBuffer`, the GUI task's stack, in 32-bit words. |
 | `lcdInitCmds` delays | `source/Core/Drivers/LCD.cpp` | 120 ms after `ST7735_SWRESET`, 120 ms after `ST7735_SLPOUT`, 10 ms after `ST7735_DISPON` | 150, 200, 100 ms | Waits in the LCD initialisation command chain. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 35 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 36 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first debug page. |
 
 ## Settings added
 
@@ -79,9 +80,9 @@ The PID output is in tenths of a watt. According to the comment in `configuratio
 
 Colour settings: 0 is "Auto", the theme's own colour for that screen. 1 to 8 select a fixed colour from the table in `hs02CardAccent()`: 1 Blue `0x3DFF`, 2 Green `0x262B`, 3 Red `0xEA28`, 4 Orange `0xF4E1`, 5 Yellow `0xFE62`, 6 Purple `0xA45F`, 7 Pink `0xF396`, 8 White `0xFFFF`.
 
-The menu entries for these settings, and the code that reads the five colour settings, are compiled only with `LCD_160x80` and `HS02_THEME_CARD`. `BuzzerEnabled`, `LowVoltageAllowed` and `ButtonLight` are read in every HS-02 build.
+The menu entries for these settings, and the code that reads the five colour settings, are compiled only with `LCD_160x80` and `HS02_THEME_CARD`. The code that reads `BuzzerEnabled`, `LowVoltageAllowed` and `ButtonLight` is outside that guard.
 
-One existing row changed: `MinVoltageCells` now ranges from 25 to 35 (2.5 V to 3.5 V per cell); upstream allows 24 to 38.
+One existing row changed: `MinVoltageCells` now ranges from 25 to 35 (2.5 V to 3.5 V per cell); upstream allows 24 to 38. The `CalibrationOffset` row is unchanged, but it takes its lower limit and its default from `MIN_CALIBRATION_OFFSET` and `CALIBRATION_OFFSET`, which are both 0 for this board (see "Other constants in `configuration.h`").
 
 ## `source/Core/BSP/Fnirsi/Setup.cpp`
 
@@ -113,7 +114,7 @@ New. Sounds the buzzer at a pitch given in Hz by changing the period of TIM2. A 
 
 #### `void showBootLogo(void)`
 
-Changed. With `HS02_THEME_CARD` it returns at once: no logo is drawn and the backlight stays off. `guiRenderLoop()` switches the backlight on later. Without the define it is unchanged. Called from `guiHandleDraw()` in the `StartupLogo` mode.
+Changed. With `HS02_THEME_CARD` it returns at once: no logo is drawn and the backlight stays off. `guiRenderLoop()` switches the backlight on later. Called from `guiHandleDraw()` in the `StartupLogo` mode.
 
 ## `source/Core/BSP/Fnirsi/ThermoModel.cpp`
 
@@ -121,7 +122,7 @@ Changed. With `HS02_THEME_CARD` it returns at once: no logo is drawn and the bac
 
 Changed (anonymous namespace). Converts the tip sensor voltage to an absolute tip temperature in tenths of a °C, by linear interpolation through measured points at 223, 273, 350, 400, 450 and 500 °C. `tipuV` is in microvolts with the calibration offset already removed. Called by `TipThermoModel::convertuVToDegCx10()` when no valid factory calibration is found.
 
-The fork changed two things. The points are now stored as amplifier-input microvolts (measured value plus `CALIBRATION_OFFSET`), and the current `CalibrationOffset` setting is added back to `tipuV` before the comparison, so a CJC calibration moves only the cold end of the curve. The lowest segment now runs from 25.0 °C at a zero reading to 223.0 °C at the first point; upstream starts it at 30.5 °C. Within that segment the function returns 250 when the offset is at or above the first point, which keeps the divisor `p223 - offset` positive.
+The fork changed two things. The points are now stored as amplifier-input microvolts: the measured value plus the local constant `kMeasuredWithOffset` (900), the offset in microvolts that had been removed when the points were measured. The current `CalibrationOffset` setting is added back to `tipuV` before the comparison, so the offset setting, whatever its value, moves only the cold end of the curve. The lowest segment now runs from 25.0 °C at a zero reading to 223.0 °C at the first point; upstream starts it at 30.5 °C. Within that segment the function returns 250 when the offset is at or above the first point, which keeps the divisor `p223 - offset` positive.
 
 #### `TemperatureType_t TipThermoModel::convertuVToDegCx10(uint32_t tipuVDelta)`
 
@@ -139,7 +140,7 @@ Changed. After the initialisation commands, the card theme fills the whole panel
 
 #### `static void LCD::refresh(const bool force = false)`
 
-Changed (inline in `LCD.hpp`). The colour-mode path is unchanged. In mono mode the card theme first copies the pending accent colour and regions into the active ones, then calls `refreshMonoThemed()` if the buffer checksum changed, `force` is set, or the accent colour or a region changed. Without `HS02_THEME_CARD` the mono path is the upstream one. Called at the end of every GUI frame through `Display::refresh()`, and from blocking screens.
+Changed (inline in `LCD.hpp`). The colour-mode path is unchanged. In mono mode the card theme first copies the pending accent colour and regions into the active ones, then calls `refreshMonoThemed()` if the buffer checksum changed, `force` is set, or the accent colour or a region changed. Called at the end of every GUI frame through `Display::refresh()`, and from blocking screens.
 
 #### `static void LCD::setMonoAccentColour(uint16_t rgb565)`
 
@@ -204,7 +205,7 @@ Changed. Returns the undervoltage threshold in tenths of a volt. When the power 
 
 ## `source/Core/Src/main.cpp`
 
-No function changed. `GUITaskStackSize` is larger in the card theme; see "Constants outside `configuration.h`".
+No function changed. `GUITaskStackSize` is larger than upstream; see "Constants outside `configuration.h`".
 
 ## `source/Core/Threads/GUIThread.cpp`
 
@@ -254,6 +255,10 @@ New. In the card theme it prints `LargeSymbolDegF` or `LargeSymbolDegC` in the l
 Changed. Asks the user to confirm an action and returns 1 for yes and 0 for no. Called by `setCalibrate()` and `setResetSettings()` when their menu entry is activated. It blocks until a button is pressed.
 
 In the card theme, the messages `SettingsCalibrationWarning` and `SettingsResetWarning` are replaced by fixed short texts (`SmallCardConfirmCalibrate1` to `4`, `SmallCardConfirmReset1` to `3`), one small-font row of 16 pixels each, above a grey hint row reading no / no / yes in button order. OK short returns 1 and any other button returns 0. The loop redraws every 40 ms. Any other message still scrolls as upstream, with the mono regions reset to one colour.
+
+#### `static void setCalibrate(void)`
+
+Changed. The handler of the `CalibrateCJC` menu entry. If the `CalibrateCJC` setting is 0 it asks for confirmation with `userConfirmation()` and, on yes, sets the setting to 1; if the setting is already 1 it sets it back to 0. The fork added a call to `saveSettings()` straight after either change; upstream does not save here. The comment gives the reason: the next thing the user does is unplug the iron.
 
 #### `static void setOpenDebugPages(void)`
 
@@ -366,17 +371,17 @@ Changed. The settings menu's per-frame function, called by `guiHandleDraw()` in 
 
 ## `source/Core/Threads/UI/logic/HomeScreen.cpp`
 
-The additions are compiled only with `MODEL_HS02` and `HS02_THEME_CARD`. In that build the home screen buttons are: UP or DOWN short changes the set temperature, UP held opens the settings menu, DOWN held opens the temperature adjust screen, OK starts soldering, and UP and DOWN held together plays a tune.
+The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen buttons are: UP or DOWN short changes the set temperature, UP held opens the settings menu, DOWN held opens the temperature adjust screen, OK starts soldering, and UP and DOWN held together plays a tune.
 
 The file-level static `hs02SetTempSaveAt` holds the tick at which a changed set temperature is due to be written to flash, or 0 if nothing is pending.
 
-#### `static void hs02StepSetTemperature(bool up)`
+#### `void hs02StepSetTemperature(bool up)`
 
-New. Changes the `SolderingTemp` setting by one step up or down. The step is the `TempChangeShortStep` setting, but at least 5. The result is rounded to a multiple of the step and limited to `MIN_TEMP_C` to `MAX_TEMP_C`, or the °F limits when `TemperatureInF` is set. The value is in the selected unit. It does not write to flash; it sets `hs02SetTempSaveAt` to two seconds from now. Called by `handleHomeButtons()` on a short UP or DOWN press.
+New. Changes the `SolderingTemp` setting by one step up or down. The step is the `TempChangeShortStep` setting, but at least 5. The result is rounded to a multiple of the step and limited to `MIN_TEMP_C` to `MAX_TEMP_C`, or the °F limits when `TemperatureInF` is set. The value is in the selected unit. It does not write to flash; it sets `hs02SetTempSaveAt` to two seconds from now. Called by `handleHomeButtons()` and by `handleSolderingButtons()` (`Soldering.cpp`) on a short UP or DOWN press.
 
-#### `static void hs02SaveSetTemperatureIfDue(bool now)`
+#### `void hs02SaveSetTemperatureIfDue(bool now)`
 
-New. Calls `saveSettings()` if a save is pending and either `now` is true or the two seconds have passed, then clears the pending mark. Called by `handleHomeButtons()` every frame with `now` false, and with `now` true before leaving the home screen.
+New. Calls `saveSettings()` if a save is pending and either `now` is true or the two seconds have passed, then clears the pending mark. Called by `handleHomeButtons()` and by `handleSolderingButtons()` every frame with `now` false, and with `now` true before they leave their screen.
 
 #### `OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt)`
 
@@ -387,6 +392,27 @@ Changed. Handles the home screen buttons and returns the next operating mode. Ca
 - UP short or DOWN short calls `hs02StepSetTemperature()`. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
 - UP held saves a pending set temperature, sets `hs02MenuWaitForRelease` and returns `SettingsMenu`.
 - Any other press saves a pending set temperature and falls through to the upstream handling, where DOWN held opens the temperature adjust screen and OK short starts soldering.
+
+## `source/Core/Threads/UI/logic/Soldering.cpp`
+
+The change is guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The file declares `hs02StepSetTemperature()` and `hs02SaveSetTemperatureIfDue()`, which are defined in `HomeScreen.cpp`.
+
+#### `OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt)`
+
+Changed. Handles the buttons of the soldering screen and returns the next operating mode. Called by `gui_solderingMode()` at the end of every frame. `cxt->scratch_state.state1` holds the lock state (0 unlocked and released, 1 unlocked, 2 locked, 3 locked and released) and `state2` is non-zero while boosting.
+
+While the buttons are unlocked, the card theme runs its own `switch` in place of the upstream one; the comment says it is laid out to match the home screen. It first calls `hs02SaveSetTemperatureIfDue(false)`. Then:
+
+- No button: sets `state1` to 0, and ends boost unless boost is on and `getButtonOK()` reports that the OK button is still down. The comment explains that `BUTTON_OK_LONG` is reported once per hold (`Buttons.cpp`) and is followed by `BUTTON_NONE`.
+- UP short or DOWN short: calls `hs02StepSetTemperature()`, so the target changes by one step at once. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
+- UP held or DOWN held: saves a pending set temperature and returns `TemperatureAdjust`.
+- OK short or `BUTTON_BOTH`: saves a pending set temperature and returns `HomeScreen`, which stops heating.
+- OK held: starts boost if the `BoostTemp` setting is not 0. Boost stays on for as long as the OK button is down.
+- UP and DOWN held together: locks the buttons if the `LockingMode` setting is not 0, as upstream.
+
+Both mode changes are made without a transition animation. In upstream, OK held, `BUTTON_BOTH` or UP held returns to the home screen, DOWN held starts boost, and any short press opens the temperature adjust screen.
+
+While the buttons are locked, the press that starts boost (when `BoostTemp` is not 0 and `LockingMode` is `lockingMode_t::BOOST`) is OK held; upstream uses DOWN held. With no button, boost is kept on while the OK button is still down, as in the unlocked case; upstream ends it. The rest of the locked branch is unchanged.
 
 ## `source/Core/Threads/UI/logic/utils/Hs02Tune.cpp`
 
@@ -434,7 +460,7 @@ Draws the vertical accent bar at the left edge and the screen's label (for examp
 
 #### `void drawCardTarget(const char *caption, TemperatureType_t target)`
 
-Draws the right-hand column: a grey caption at (104, 8) and, under it, the target temperature in whole degrees from `Hs02CardDigits::kMediumDigits` in the accent colour, without leading zeros and followed by a small degree ring.
+Draws the right-hand column: a grey caption at (104, 8) and, under it at (104, 23), the target temperature in whole degrees from `Hs02CardDigits::kMediumDigits` in the accent colour, without leading zeros and followed by a small degree ring. The comment limits the caption to three letters, because the supply voltage drawn by `drawCardVoltage()` shares its row. Both callers pass the translated "set" label (`Hs02WashFont::kLabels.set`).
 
 #### `void drawCardPowerBar(uint32_t x10Watt)`
 
@@ -446,11 +472,15 @@ Returns the input voltage rounded to whole volts, from `getInputVoltageX10()` wi
 
 #### `void drawCardValue(uint32_t value, char unit, uint8_t x, uint8_t y)`
 
-Draws a whole number followed by a one-character unit in the small grey text, for example "20V".
+Draws a whole number followed by a one-character unit in the small grey text, for example "20V" or "65W".
 
 #### `void drawCardFooter(uint32_t value, char unit)`
 
-Calls `drawCardValue()` at the fixed position bottom right, beside the bar (120, 63).
+Calls `drawCardValue()` at the fixed position bottom right, beside the bar (120, 63). Every card screen calls it with a power in whole watts and the unit "W".
+
+#### `void drawCardVoltage()`
+
+Draws the supply voltage from `cardVolts()`, followed by "V", in the top right corner. The text is right-aligned: it starts at x = 156 − 8 × (number of digits + 1), the glyphs being 8 pixels wide, at y = 8. Called by `drawCardNoTip()`, `drawCardIdle()`, `drawCardSoldering()` and `drawCardSleep()`, so every card screen shows it.
 
 #### `TemperatureType_t cardSteadyTemperature(TemperatureType_t reading)`
 
@@ -458,23 +488,23 @@ Returns the temperature to display, in the same unit as `reading`. A change of o
 
 #### `uint32_t cardSteadyWatts(uint32_t x10Watt)`
 
-Returns heater power in tenths of a watt for the number beside the bar: a second, slower average on top of `x10WattHistory`. Each call moves the stored value one twelfth of the way to the input; if the previous call was more than half a second ago the stored value is set to the input. Keeps the statics `shownX256` (the value times 256) and `last`. Called by `drawCardSoldering()` every frame.
+Returns heater power in tenths of a watt for the number beside the bar: a second, slower average on top of `x10WattHistory`. Each call moves the stored value one twelfth of the way to the input; if the previous call was more than half a second ago the stored value is set to the input. Keeps the statics `shownX256` (the value times 256) and `last`, which are shared by the two screens that call it. Called by `drawCardSoldering()` and `drawCardSleep()` every frame.
 
 #### `void drawCardNoTip()`
 
-Draws the home screen shown when no tip is fitted: the label "NO TIP", an animation of a tip sliding into the handle (a loop of 1.6 s: one second of travel, 0.6 s seated), the text "INSERT TIP" and the input voltage. Called by `drawCardIdle()`.
+Draws the home screen shown when no tip is fitted: the label "NO TIP", an animation of a tip sliding into the handle (a loop of 1.6 s: one second of travel, 0.6 s seated), the text "INSERT TIP", the supply voltage top right (`drawCardVoltage()`) and "0W" bottom right (`drawCardFooter()`). Called by `drawCardIdle()`.
 
 #### `void drawCardIdle(TemperatureType_t tipTemp)`
 
-Draws the idle home screen. Sets the palette with the `ColourReady` accent. If `isTipDisconnected()` it calls `drawCardNoTip()`. Otherwise it draws the frame with the "ready" label, the steadied tip temperature, the set temperature (`SolderingTemp`) as the target, an empty power bar and the input voltage.
+Draws the idle home screen. Sets the palette with the `ColourReady` accent. If `isTipDisconnected()` it calls `drawCardNoTip()`. Otherwise it draws the frame with the "ready" label, the steadied tip temperature, the set temperature (`SolderingTemp`) under the "set" label, an empty power bar, the supply voltage top right and "0W" bottom right. The heater is off on this screen, so the power is drawn as the constant 0.
 
 #### `void drawCardSoldering(bool boostModeOn)`
 
-Draws the soldering screen. Sets the palette with the `ColourBoost` accent while boosting and the `ColourHeating` accent otherwise. It draws the frame with the "boost" label or "HEATING", the steadied tip temperature from `TipThermoModel::getTipInC()`, the `BoostTemp` or `SolderingTemp` setting under the caption "TARGET", the power bar from `x10WattHistory.average()`, the steadied power rounded to whole watts beside it, and the input voltage under the target.
+Draws the soldering screen. Sets the palette with the `ColourBoost` accent while boosting and the `ColourHeating` accent otherwise. It draws the frame with the "boost" label or "HEATING", the steadied tip temperature from `TipThermoModel::getTipInC()` (`getTipInF()` when `TemperatureInF` is set), the `BoostTemp` or `SolderingTemp` setting under the "set" label, the power bar from `x10WattHistory.average()`, the steadied power rounded to whole watts bottom right, and the supply voltage top right.
 
 #### `void drawCardSleep(TemperatureType_t tipTemp)`
 
-Draws the sleep screen. Sets the palette with the `ColourSleep` accent, then draws the frame with the "sleep" label, the steadied tip temperature, "Zzz" and "IDLE" in the right-hand column, and the input voltage.
+Draws the sleep screen. Sets the palette with the `ColourSleep` accent, then draws the frame with the "sleep" label, the steadied tip temperature, "Zzz" at (108, 24) and "IDLE" at (108, 42) in the right-hand column, the supply voltage top right, and bottom right the steadied heater power from `cardSteadyWatts(x10WattHistory.average())` rounded to whole watts. The comment describes that number as what holding the sleep temperature takes. This screen has no power bar.
 
 #### `void ui_draw_home_gauge_idle(TemperatureType_t tipTemp)`
 
@@ -498,7 +528,9 @@ Changed. Draws the temperature adjust screen: a sign, the set temperature and th
 
 #### `OperatingMode gui_solderingTempAdjust(const ButtonState buttonIn, guiContext *cxt)`
 
-Changed. The per-frame function of the temperature adjust screen, called by `guiHandleDraw()` in the `TemperatureAdjust` mode. The direction of a button press is now reversed when `ReverseButtonTempChangeEnabled` and `TEMP_CHANGE_SWAP_DEFAULT` differ; upstream reverses it when the setting is on. The rest is unchanged.
+Changed. The per-frame function of the temperature adjust screen, called by `guiHandleDraw()` in the `TemperatureAdjust` mode. The direction of a button press is now reversed when `ReverseButtonTempChangeEnabled` and `TEMP_CHANGE_SWAP_DEFAULT` differ; upstream reverses it when the setting is on.
+
+With `MODEL_HS02` and `HS02_THEME_CARD` the fork also changed the first frames after the screen opens. Upstream ignores all buttons until they have been released once. Here, if the button state on entry is UP held or DOWN held, that wait is skipped. The comment gives the reason: the screen is opened by holding UP or DOWN, and the same hold carries on changing the temperature. The rest is unchanged.
 
 ## `source/Core/Threads/UI/logic/CJC.cpp`
 
@@ -569,7 +601,7 @@ Both files gain one menu option for each of the nine new `SettingsItemIndex` ent
 
 ### `Translations/wash_font.py`
 
-`BASE_CHARS`, the fixed ASCII characters always included in the Wash font subset, gains the letters `AGEILZz`, `NORS` and `H`. They are needed for the card theme's fixed English texts "TARGET", "IDLE", "Zzz", "NO TIP", "INSERT TIP" and "HEATING".
+`BASE_CHARS`, the fixed ASCII characters always included in the Wash font subset, gains the letters `AGEILZz`, `NORS` and `H`. The card theme draws the fixed English texts "IDLE", "Zzz", "NO TIP", "INSERT TIP" and "HEATING" with them.
 
 ### `tools/hs02-lang-preview/host.cpp`
 
@@ -577,6 +609,33 @@ This host program links the UI code with hardware stubs and dumps every screen a
 
 - `void hs02CurrentSenseSample(void)`: empty stub.
 - `void hs02GetCurrentSense(uint16_t &offMean, uint16_t &onMean, uint16_t &peak, uint8_t &onPwmPercent, uint16_t &onVoltsX10)`: stub that returns the fixed values 12, 2345, 2600, 100 and 200.
+
+### `tools/hs02-card-demo/`
+
+New folder. It builds a browser demo of the card theme: the firmware's own GUI sources are compiled to WebAssembly and run in a web page against a stand-in for the hardware. The result is the single file `docs/demo/index.html`.
+
+| File | What it is for |
+| --- | --- |
+| `build.sh` | Compiles the firmware's GUI sources (the display and button drivers, settings, translation, `GUIThread.cpp` and the files under `Core/Threads/UI`) and `demo_host.cpp` to WebAssembly with zig's C++ compiler, with `MODEL_HS02` and `HS02_THEME_CARD` defined, links them to `out/demo.wasm` and runs `pack.py`. It needs Python 3 with the `ziglang` package and one firmware build beforehand (`make model=HS02 firmware-EN` in `source`), which generates `Core/Gen/Translation.EN.cpp`. Run it from the repository root; `PYTHON` selects the interpreter. |
+| `demo_host.cpp` | Stands in for the hardware. It stubs the board functions the GUI code calls, records what the LCD driver sends in a panel buffer, keeps a virtual clock that the delay functions advance, and runs a simple tip and heater model. Its header comment states that this model is not the firmware's PID. It imports `host_yield()` and `host_reboot()` from the page and exports the functions listed below. |
+| `shim/` | Small replacement headers for FreeRTOS, `cmsis_os.h`, `Software_I2C.h` and `LCD_Port.hpp`, enough for the GUI sources to compile. |
+| `pack.py` | Replaces the marker `@@WASM@@` in `page.html` with the base64 text of `demo.wasm` and writes the output file, so the demo is one file that also opens from disk. |
+| `page.html` | The page. It draws the panel buffer into a canvas, offers the three buttons (also on the arrow keys and Enter) and controls to pull the tip out, move the iron, mute the sound and restart, sounds the buzzer, and calls `demo_frame()` every 40 ms. When the firmware waits inside a screen, the page ends the run and replays it from a saved copy of the memory with the recorded button states. |
+
+`out/` holds the object files and `demo.wasm`; `.gitignore` excludes it.
+
+Functions `demo_host.cpp` exports to the page:
+
+| Function | What it does |
+| --- | --- |
+| `void demo_init(uint32_t keepFlash)` | Starts the GUI as `startGUITask()` does up to its loop: loads the settings, prepares the translations, initialises the display and sets the operating mode to `StartupLogo`. With `keepFlash` 0 it first fills the flash page with `0xFF`. |
+| `void demo_frame(uint32_t elapsedMs)` | Advances the clock and the tip model by `elapsedMs`, runs `guiRenderLoop()` once and updates the state structure. |
+| `void demo_publish(void)` | Updates the state structure without running a frame. |
+| `Inputs *demo_inputs(void)` | Returns the structure the page writes: the button bits (bit 0 DOWN, bit 1 UP, bit 2 OK), a "moved" flag, a "tip removed" flag, the heat a joint draws in watts and the supply voltage in tenths of a volt. |
+| `State *demo_state(void)` | Returns the structure the page reads: tick, tip temperature in tenths of a °C, target in °C, heater power in tenths of a watt, backlight, status LED, operating mode, rotation, inversion, buzzer pitch in Hz and the button light. |
+| `uint16_t *demo_panel(void)` | Returns the panel buffer, `LCD_WIDTH` × `LCD_HEIGHT` pixels as RGB565 in the colours the panel shows. |
+| `uint8_t *demo_flash(void)` | Returns the 2048-byte flash page that holds the settings. The page copies it out before a reboot and back in before `demo_init(1)`. |
+| `uint32_t demo_flash_size(void)` | Returns the size of that flash page in bytes. |
 
 ## Generated data
 

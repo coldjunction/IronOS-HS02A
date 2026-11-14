@@ -3,6 +3,27 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 36
+
+- **Fixed: "Calibrate CJC" never ran.** The request was only written to memory when the menu
+  was left, so unplugging the iron from inside the menu, which is what the prompt asks for,
+  lost it. It is now saved at once.
+- **Cold-end offset default is 0, and 0 can be stored.** Measured on the development iron, the
+  tip amplifier reads 0 with a cold tip; the port's default of 900 µV (IronOS's default for
+  other irons) made everything from room temperature to about 55 °C read as 25 °C, and for the
+  first moment of a heat-up. The stock firmware's curve also starts at 0. **If you update from
+  an earlier build, run "Calibrate CJC" once with the iron cold, or restore default settings:**
+  the old value of 900 stays in your settings otherwise.
+- **Supply voltage is in the top right corner of every screen, and heater power is always shown
+  bottom right** (0 W on the ready screen).
+- **Heating screen buttons:** Up and Down now change the target directly, as on the ready
+  screen. Press OK to stop heating. Hold OK for boost (it was hold Down). Hold Up or Down and
+  the temperature screen opens and keeps changing the target while the button stays down; you
+  no longer have to let go and hold again.
+- **One firmware only.** The builds with the port's interface and the two alternative PID
+  profiles are gone; the Makefile always builds the card theme with the hybrid PID.
+- **Browser demo** of the screens and menus: https://claudiotnt.github.io/IronOS-HS02A/demo/
+
 ## Build 35
 
 - **Less overshoot:** the PID integral now only accumulates while the tip approaches the set
@@ -58,6 +79,7 @@ GPLv3; this is a modified version and is published under the same licence.
 - **No heat-up ramp and no soft start.** Heater power and boost targets are applied at once.
 - **Default power limit 100 W.**
 - **Input voltages under 9 V are refused** unless "Allow under 9V" is switched on.
+- **Boost is on OK held** (the port uses Down held), and OK pressed stops heating.
 
 ## Known issues
 
@@ -69,11 +91,9 @@ GPLv3; this is a modified version and is published under the same licence.
   zero, so such a unit may show the MCU temperature for a cold tip and read some degrees high
   when warm. It may also apply the calibration offset differently from the fallback curve. Not
   confirmed on hardware.
-- **A cold tip can read 25 °C even after a CJC calibration.** Seen on the development iron: the
-  reading stays at 25 °C until the tip is well above hand temperature, and for the first moment
-  of a heat-up. The likely cause is the tip amplifier's output sitting at its lower limit for a
-  cold tip on that unit, which firmware cannot see below; not confirmed. Soldering temperatures
-  are not affected.
+- **The tip amplifier cannot read below its zero.** On the development iron it reads exactly 0
+  with a cold tip, so a tip colder than the handle (or an amplifier whose real zero is slightly
+  negative) shows 25 °C until the signal rises above 0. Soldering temperatures are not affected.
 - **The CJC "iron is warm" check is weak.** It relies on the MCU's own temperature and did not
   trigger in a test straight after heating. Only calibrate an iron you know is cold.
 - **Readings below about 223 °C depend on the CJC calibration.** Run "Calibrate CJC" once with

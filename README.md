@@ -3,6 +3,8 @@
 A modified version of the [bugparty/IronOS](https://github.com/bugparty/IronOS) port of
 [IronOS](https://github.com/Ralim/IronOS) for the FNIRSI HS-02A soldering iron.
 
+**[Try it in your browser](https://claudiotnt.github.io/IronOS-HS02A/demo/)**: the real screens and menus, compiled to WebAssembly.
+
 **Status:** developed and tested on one HS-02A. It is not an official FNIRSI or IronOS release.
 Flash it at your own risk, and read the known issues first.
 
@@ -50,7 +52,8 @@ useful to it, it is free to take under the same licence.
   or changed by this fork does.
 - [Changelog and known issues](HS02A-CHANGELOG.md).
 
-Firmware files are attached to the [releases](../../releases).
+The firmware file is attached to the [releases](../../releases). There is one firmware: the
+card theme with the hybrid PID.
 
 ## Known limits
 

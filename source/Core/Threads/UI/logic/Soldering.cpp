@@ -6,6 +6,11 @@
 // State 2 = boost mode
 // State 3 = buzzer timer
 
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+void hs02StepSetTemperature(bool up);       // HomeScreen.cpp
+void hs02SaveSetTemperatureIfDue(bool now); // HomeScreen.cpp
+#endif
+
 OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt) {
   if (cxt->scratch_state.state1 >= 2) {
     // Buttons are currently locked
@@ -33,9 +38,21 @@ OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt)
     switch (buttons) {
     case BUTTON_NONE:
       cxt->scratch_state.state1 = 3;
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+      // BUTTON_OK_LONG is reported once per hold (Buttons.cpp), then BUTTON_NONE: boost goes on
+      // for as long as the button itself is down.
+      if (!(cxt->scratch_state.state2 && getButtonOK())) {
+        cxt->scratch_state.state2 = 0;
+      }
+#else
       cxt->scratch_state.state2 = 0;
+#endif
       break;
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+    case BUTTON_OK_LONG: // card theme: boost is OK held
+#else
     case BUTTON_F_LONG:
+#endif
       if (getSettingValue(SettingsOptions::BoostTemp) && (getSettingValue(SettingsOptions::LockingMode) == lockingMode_t::BOOST)) {
         cxt->scratch_state.state2 = 1;
         break;
@@ -50,6 +67,59 @@ OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt)
   }
 
   // otherwise we are unlocked
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+  // Card theme, to match the home screen:
+  //   UP / DOWN short   target up / down by one step, at once
+  //   UP / DOWN held    the temperature screen (larger steps while held)
+  //   OK short          stop heating, back to the home screen
+  //   OK held           boost for as long as it is held
+  //   UP + DOWN held    lock the buttons, if locking is allowed
+  hs02SaveSetTemperatureIfDue(false);
+  switch (buttons) {
+  case BUTTON_NONE:
+    // BUTTON_OK_LONG is reported once per hold (Buttons.cpp), then BUTTON_NONE: boost goes on
+    // for as long as the button itself is down.
+    if (!(cxt->scratch_state.state2 && getButtonOK())) {
+      cxt->scratch_state.state2 = 0;
+    }
+    cxt->scratch_state.state1 = 0;
+    break;
+  case BUTTON_OK_SHORT:
+  case BUTTON_BOTH:
+    hs02SaveSetTemperatureIfDue(true);
+    cxt->transitionMode = TransitionAnimation::None; // colour screen to colour screen: a hard cut
+    return OperatingMode::HomeScreen;
+  case BUTTON_OK_LONG:
+    if (getSettingValue(SettingsOptions::BoostTemp)) {
+      cxt->scratch_state.state2 = 1;
+    }
+    break;
+  case BUTTON_B_SHORT:
+  case BUTTON_F_SHORT:
+    // UP is "+" unless "Swap + - keys" is on
+    hs02StepSetTemperature((buttons == BUTTON_B_SHORT) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0));
+    break;
+  case BUTTON_B_LONG:
+  case BUTTON_F_LONG:
+    hs02SaveSetTemperatureIfDue(true);
+    cxt->transitionMode = TransitionAnimation::None; // the temperature screen is a mono screen
+    return OperatingMode::TemperatureAdjust;
+  case BUTTON_BOTH_LONG:
+    if (getSettingValue(SettingsOptions::LockingMode)) {
+      if (cxt->scratch_state.state1 == 0) {
+        if (warnUser(translatedString(Tr->LockingKeysString), buttons)) {
+          cxt->scratch_state.state1 = 2;
+        }
+      } else {
+        warnUser(translatedString(Tr->UnlockingKeysString), buttons);
+      }
+    }
+    break;
+  default:
+    break;
+  }
+  return OperatingMode::Soldering;
+#endif
   switch (buttons) {
   case BUTTON_NONE:
     cxt->scratch_state.state2 = 0;

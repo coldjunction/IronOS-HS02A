@@ -20,7 +20,7 @@ bugparty. This fork is a set of changes on top of their work.
 
 ## Contents
 
-1. [Which file to flash](#which-file-to-flash)
+1. [Which file to flash](#which-file-to-flash) and the [browser demo](https://claudiotnt.github.io/IronOS-HS02A/demo/)
 2. [Installing](#installing)
 3. [Buttons](#buttons)
 4. [Screens](#screens)
@@ -35,18 +35,9 @@ bugparty. This fork is a set of changes on top of their work.
 
 ## Which file to flash
 
-Each release has four firmware files. They differ only in the user interface and the PID gains.
-
-| File name contains | Interface | PID |
-|---|---|---|
-| `hybrid-PID_card-theme` | Card theme (everything on this page) | Hybrid (this fork's tuning) |
-| `hybrid-PID` | The port's original interface | Hybrid |
-| `factory-equivalent-PID` | The port's original interface | Gains equivalent to FNIRSI's stock control law |
-| `original-port-PID` | The port's original interface | The port's own gains |
-
-The settings added by this fork (colours, buzzer, button light, low-voltage switch, debug pages
-entry) only have menu entries in the card theme file. The temperature reading fixes, the
-100 W default power limit and the removed heat-up ramp are in all four.
+Each release has one firmware file, `vNN_HS02A_IronOS_EN_hybrid-PID_card-theme_firmware.bin`,
+where NN is the build number. You can try the screens and menus first in the
+[browser demo](https://claudiotnt.github.io/IronOS-HS02A/demo/).
 
 ## Installing
 
@@ -73,16 +64,17 @@ The three buttons, left to right as you hold the iron with the screen facing you
 | Press Up / Down | Target temperature up / down to the next step (5 degrees unless "Temp change short" is larger). Saved two seconds later. |
 | Press OK | Start heating |
 | Hold Up | Open the settings menu |
-| Hold Down | Open the temperature screen |
+| Hold Down | Open the temperature screen and keep lowering the target while held |
 | Hold Up and Down together | Play a tune (see [Tunes](#tunes)) |
 
 ### Heating screen
 
 | Action | Result |
 |---|---|
-| Press any button | Open the temperature screen |
-| Hold Down | Boost: heat to the boost temperature for as long as the button is held |
-| Hold Up, or hold OK | Stop heating and go back to the ready screen |
+| Press Up / Down | Target temperature up / down to the next step, as on the ready screen |
+| Hold Up or Down | Open the temperature screen and keep changing the target, in larger steps, for as long as the button is held |
+| Press OK | Stop heating and go back to the ready screen |
+| Hold OK | Boost: heat to the boost temperature for as long as the button is held |
 | Hold Up and Down together | Lock or unlock the buttons, if "Allow locking buttons" is on |
 
 ### Temperature screen
@@ -111,12 +103,15 @@ temperature change by 1 degree per press and jump to the next multiple of 10 whi
 
 ## Screens
 
-- **Ready:** tip temperature (large), the target ("SET"), and the supply voltage.
-- **Heating:** tip temperature, the target, the supply voltage, and along the bottom a bar and
-  a number for heater power. The bar is the share of the power limit in use.
+- **Ready:** tip temperature (large) and the target ("SET").
+- **Heating:** tip temperature and the target, and along the bottom a bar for heater power as a
+  share of the power limit.
 - **Boost:** the heating screen in its own colour, with the boost temperature as target.
 - **Sleep:** tip temperature while the iron idles at the sleep temperature.
 - **No tip:** an animation of a tip sliding into the handle. The menu stays reachable.
+
+Every screen shows the supply voltage in the top right corner and the heater power in watts in
+the bottom right corner.
 
 Temperatures are in the unit chosen under "Temperature unit". Each screen has its own accent
 colour (green, red, amber, blue), which can be changed per screen in the menu.
@@ -130,7 +125,7 @@ half a second. The power bar is not averaged.
 - **Fast heat-up.** Full power from the first moment: no soft start and no temperature ramp.
   Power is limited by the "Power limit" setting (default and maximum 100 W) and by what the
   supply can deliver at its voltage.
-- **Boost.** Hold Down while heating to raise the target to the boost temperature
+- **Boost.** Hold OK while heating to raise the target to the boost temperature
   (default 420 °C) for as long as the button is held. Useful for one large joint. Set the boost
   temperature to "Off" to disable it.
 - **Sleep.** The iron has a motion sensor. When it has not moved for the sleep timeout
@@ -219,7 +214,9 @@ fixed button layout.
 
 The HS-02A has no temperature sensor in the handle. The firmware assumes the cold end of the
 tip is at 25 °C and needs to know what the tip amplifier reads when the tip is at that
-temperature. Until it does, low temperatures (below about 50–60 °C) can all read as 25 °C.
+temperature (the "offset"). The default is 0, which is what the development iron measures.
+If you update from a build before 36, your settings still hold the old default of 900 µV, and
+low temperatures (below about 55 °C) all read as 25 °C until you calibrate once.
 
 1. Leave the iron unplugged for at least 30 minutes with the tip fitted.
 2. Plug it in, open **Advanced settings → Calibrate CJC at next boot** and confirm.
@@ -232,8 +229,7 @@ without a message; the calibration stays requested for the next start.
 The calibration only affects readings below about 223 °C. Readings above that come from fixed
 measured points.
 
-On some irons a cold tip still reads 25 °C after calibrating. See the known issues in the
-changelog.
+The request is stored as soon as you confirm it, so you can unplug straight from the menu.
 
 ## Debug pages
 
@@ -276,14 +272,14 @@ the `bdflib` package.
 
 ```bash
 cd source
-make -j8 model=HS02 firmware-EN GLOBAL_DEFINES="-DHS02_THEME_CARD"
+make -j8 model=HS02 firmware-EN
 ```
 
-The result is `source/Hexfile/HS02_EN_firmware.bin`. Leave `GLOBAL_DEFINES` empty for the
-port's original interface with the hybrid PID, or use `-DHS02_FACTORY_PID` or
-`-DHS02_ORIGINAL_PID` for the other two PID profiles. Delete `source/Objects`,
-`source/Hexfile` and `source/Core/Gen` when switching between variants. The build number shown
-on the debug page is `CUSTOM_BUILD` in `Translations/make_translation.py`.
+The result is `source/Hexfile/HS02_EN_firmware.bin`. The build number shown on the debug page
+is `CUSTOM_BUILD` in `Translations/make_translation.py`.
+
+The browser demo is built from the same sources by `tools/hs02-card-demo/build.sh` (needs the
+Python package `ziglang`); it writes `docs/demo/index.html`.
 
 Only the English translation has the menu texts added by this fork.
 

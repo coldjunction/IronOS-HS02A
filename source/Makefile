@@ -396,6 +396,10 @@ OPTIM=-Os                             \
 
 # Global defines ---------------------------------------------------------------
 GLOBAL_DEFINES+=$(DEV_GLOBAL_DEFS) -D USE_RTOS_SYSTICK -D MODEL_$(model) -D VECT_TAB_OFFSET=$(bootldr_size)U -fshort-wchar
+# HS-02: this fork always builds its card theme (see Core/BSP/Fnirsi/configuration.h).
+ifeq ($(model),HS02)
+GLOBAL_DEFINES+=-DHS02_THEME_CARD
+endif
 
 ifdef swd_enable
 GLOBAL_DEFINES+=-DSWD_ENABLE

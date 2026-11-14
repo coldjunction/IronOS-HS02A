@@ -1068,9 +1068,11 @@ static void setCalibrate(void) {
       // User confirmed
       // So we now set the tick
       setSettingValue(SettingsOptions::CalibrateCJC, 1);
+      saveSettings(); // at once: the next thing the user does is unplug the iron
     }
   } else {
     setSettingValue(SettingsOptions::CalibrateCJC, 0);
+    saveSettings();
   }
 }
 

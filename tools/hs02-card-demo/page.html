@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HS-02A card theme demo</title>
+<meta name="description" content="Try the HS-02A card theme firmware in your browser: the real screens and menus, compiled to WebAssembly.">
+<style>
+  :root {
+    --bg:#0a0d12; --card:#131821; --edge:#232b38; --text:#e9eef5; --muted:#8e9bab;
+    --accent:#21c65a; --key:#1a212c; --key-edge:#2d3848; --glow:#e8f1ff; --led:#4aa3ff;
+  }
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { margin:0; min-height:100vh; background:radial-gradient(1100px 520px at 50% -120px, #16202c 0%, var(--bg) 62%); color:var(--text);
+         font:15px/1.5 system-ui, "Segoe UI", Roboto, sans-serif; display:flex; justify-content:center; }
+  main { width:100%; max-width:540px; padding:36px 16px 44px; }
+  h1 { font-size:21px; line-height:1.25; margin:0; font-weight:650; letter-spacing:-.01em; text-wrap:balance; }
+  .sub { margin:6px 0 24px; color:var(--muted); font-size:14px; }
+
+  .iron { background:linear-gradient(180deg, #1b222d, #10141b); border:1px solid var(--edge); border-radius:26px; padding:18px 18px 16px;
+          box-shadow:0 24px 60px -30px #000, inset 0 1px 0 #2a3443; }
+  .bezel { background:#020304; border-radius:12px; padding:10px; box-shadow:inset 0 0 0 1px #1a1f27, 0 1px 0 #2a3443; }
+  canvas { display:block; width:100%; aspect-ratio:2/1; image-rendering:pixelated; image-rendering:crisp-edges; border-radius:4px; background:#000; }
+
+  .keys { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-top:16px; }
+  .key { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; }
+  .key button { width:100%; height:52px; border-radius:14px; border:1px solid var(--key-edge); background:linear-gradient(180deg, #222b38, var(--key));
+                color:var(--text); font:650 15px/1 system-ui, "Segoe UI", sans-serif; cursor:pointer; touch-action:none; user-select:none; -webkit-user-select:none;
+                transition:transform .06s ease, box-shadow .15s ease, border-color .15s ease; }
+  .key button.down { transform:translateY(2px); border-color:var(--accent); color:var(--accent); background:#12241a; }
+  .key button:focus-visible, .tools button:focus-visible { outline:2px solid var(--led); outline-offset:3px; }
+  .key .does { min-height:2.9em; font-size:12.5px; line-height:1.45; color:var(--muted); text-align:center; text-wrap:balance; }
+  .key .does b { color:var(--text); font-weight:600; }
+  body.lit #kDown, body.lit #kUp { box-shadow:0 0 0 1px #5b6676, 0 0 16px -2px var(--glow); }
+  #kOk.led-hot { box-shadow:0 0 16px -1px var(--led); border-color:var(--led); }
+  #kOk.led-heating { animation:blink .4s steps(1) infinite; }
+  #kOk.led-cooling { animation:blink 1s steps(1) infinite; }
+  @keyframes blink { 0%, 49% { box-shadow:0 0 16px -1px var(--led); border-color:var(--led); } 50%, 100% { box-shadow:none; } }
+
+  .tools { display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+  .tools button { font:500 13.5px/1 system-ui, "Segoe UI", sans-serif; color:var(--text); background:transparent; border:1px solid var(--edge); border-radius:999px;
+                  padding:9px 14px; cursor:pointer; }
+  .tools button:hover { border-color:#3a4658; }
+  .tools button[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); }
+  .foot { margin-top:22px; padding-top:14px; border-top:1px solid var(--edge); color:var(--muted); font-size:13px; }
+  .foot a { color:var(--text); }
+  kbd { font:12px ui-monospace, Consolas, monospace; background:var(--key); border:1px solid var(--key-edge); border-radius:5px; padding:1px 5px; }
+  #error { color:#ff7b72; font-size:13px; margin-top:10px; }
+  @media (prefers-reduced-motion:reduce) { #kOk.led-heating, #kOk.led-cooling { animation:none; box-shadow:0 0 16px -1px var(--led); } .key button { transition:none; } }
+  @media (max-width:400px) { main { padding-top:22px; } .iron { padding:12px; border-radius:20px; } .key .does { font-size:12px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>HS-02A card theme</h1>
+  <p class="sub">The firmware's real screens and menus, running in your browser. Press the three buttons as you would on the iron; hold one for a long press.</p>
+
+  <div class="iron">
+    <div class="bezel"><canvas id="lcd" width="160" height="80" role="img" aria-label="Simulated HS-02A display"></canvas></div>
+    <div class="keys">
+      <div class="key"><button id="kDown" data-bit="1" aria-label="Down button">▼ Down</button><div class="does" id="dDown"></div></div>
+      <div class="key"><button id="kUp" data-bit="2" aria-label="Up button">▲ Up</button><div class="does" id="dUp"></div></div>
+      <div class="key"><button id="kOk" data-bit="4" aria-label="OK button">OK</button><div class="does" id="dOk"></div></div>
+    </div>
+  </div>
+
+  <div class="tools">
+    <button id="tTip" aria-pressed="false">Pull the tip out</button>
+    <button id="tMove">Move the iron</button>
+    <button id="tSound" aria-pressed="true">Sound on</button>
+    <button id="tRestart">Unplug and replug</button>
+  </div>
+  <div id="error" role="alert"></div>
+
+  <p class="foot">Keyboard: <kbd>↓</kbd> Down, <kbd>↑</kbd> Up, <kbd>Enter</kbd> OK. The screens, menus, settings and timing are the firmware's own code. The tip and heater are a simple stand-in, so heat-up times here are not the iron's. Settings last until you close the page.
+  <a href="https://github.com/ClaudioTNT/IronOS-HS02A">Firmware and guide on GitHub</a>.</p>
+</main>
+
+<script>
+const WASM_B64 = "@@WASM@@";
+const $ = id => document.getElementById(id);
+const YIELD = { yield: true }, REBOOT = { reboot: true };
+const FRAME_MS = 40;
+
+// What each button does on the screen that is showing: [Down, Up, OK]. Keys are the
+// firmware's OperatingMode numbers.
+const DOES = {
+  0:  ['<b>Press</b> cooler<br><b>Hold</b> cooler, fast', '<b>Press</b> hotter<br><b>Hold</b> settings', '<b>Press</b> start heating'],
+  1:  ['<b>Press</b> cooler<br><b>Hold</b> cooler, fast', '<b>Press</b> hotter<br><b>Hold</b> hotter, fast', '<b>Press</b> stop heating<br><b>Hold</b> boost'],
+  3:  ['Wake', 'Wake', 'Wake'],
+  14: ['Wake', 'Wake', 'Wake'],
+  4:  ['Next, or less', 'Previous, or more', '<b>Press</b> select or save<br><b>Hold</b> back'],
+  5:  ['Next page', 'Leave', ''],
+  7:  ['Lower', 'Higher', 'Done'],
+  11: ['No', 'No', 'Yes'],
+};
+const LED_CLASS = { 2: 'led-heating', 3: 'led-hot', 4: 'led-cooling' };
+
+let module = null, ex = null;
+let held = 0, moved = 0, tipOut = false, soundOn = true;
+let snapshot = null, stackTop = 0, log = [], cursor = 0, pendingDelay = FRAME_MS, timer = null;
+let shownMode = -1, shownLed = -1;
+const ctx = $('lcd').getContext('2d'), image = ctx.createImageData(160, 80);
+const mem8 = () => new Uint8Array(ex.memory.buffer);
+const view = () => new DataView(ex.memory.buffer);
+
+// The buzzer: a square wave at the pitch the firmware asks for. Browsers only allow sound
+// after a click or key press, so it starts with the first button you use.
+let audio = null, osc = null, gain = null, buzzHz = -1;
+function buzz(hz) {
+  if (!soundOn) hz = 0;
+  if (hz === buzzHz || !audio) return;
+  buzzHz = hz;
+  if (hz) osc.frequency.setValueAtTime(hz, audio.currentTime);
+  gain.gain.setValueAtTime(hz ? 0.035 : 0, audio.currentTime);
+}
+function enableSound() {
+  if (audio) return;
+  try {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    osc = audio.createOscillator(); gain = audio.createGain();
+    osc.type = 'square'; gain.gain.value = 0; osc.connect(gain).connect(audio.destination); osc.start();
+  } catch (e) { audio = null; }
+}
+addEventListener('pointerdown', enableSound); addEventListener('keydown', enableSound);
+
+const currentInputs = () => ({ buttons: held, moved, tip: tipOut ? 1 : 0 });
+function writeInputs(i) {
+  const p = ex.demo_inputs(), m = mem8();
+  m[p] = i.buttons; m[p + 1] = i.moved; m[p + 2] = i.tip; m[p + 3] = 0;
+  view().setUint16(p + 4, 200, true); // 20.0 V supply
+}
+function present() {
+  ex.demo_publish();
+  const v = view(), panel = ex.demo_panel(), s = ex.demo_state(), d = image.data;
+  for (let i = 0; i < 12800; i++) {
+    const c = v.getUint16(panel + i * 2, true), o = i * 4;
+    d[o] = ((c >> 11) & 31) * 255 / 31; d[o + 1] = ((c >> 5) & 63) * 255 / 63; d[o + 2] = (c & 31) * 255 / 31; d[o + 3] = 255;
+  }
+  ctx.putImageData(image, 0, 0);
+  const backlight = v.getUint8(s + 10), led = v.getUint8(s + 11), mode = v.getUint8(s + 12);
+  $('lcd').style.filter = backlight ? `brightness(${(0.45 + 0.55 * Math.min(backlight, 100) / 100).toFixed(2)})` : 'brightness(0)';
+  buzz(v.getUint16(s + 16, true));
+  document.body.classList.toggle('lit', v.getUint8(s + 18) === 1);
+  if (mode !== shownMode) {
+    shownMode = mode;
+    const does = DOES[mode] ?? ['', '', ''];
+    $('dDown').innerHTML = does[0]; $('dUp').innerHTML = does[1]; $('dOk').innerHTML = does[2];
+  }
+  if (led !== shownLed) {
+    shownLed = led;
+    $('kOk').classList.remove('led-heating', 'led-hot', 'led-cooling');
+    if (LED_CLASS[led]) $('kOk').classList.add(LED_CLASS[led]);
+  }
+}
+
+// The firmware sometimes waits inside one screen (animations, "are you sure?" prompts).
+// A browser cannot pause it there, so each wait ends the run, and the next run replays the
+// same screen from a saved copy of its memory with the recorded button states, one wait
+// further each time. The firmware sees the button and clock history it would on the iron.
+function hostYield(ms) {
+  if (cursor < log.length) { writeInputs(log[cursor++]); return; }
+  present();
+  pendingDelay = Math.max(10, ms);
+  throw YIELD;
+}
+
+async function boot(flash) {
+  const imports = { env: { host_yield: hostYield, host_reboot: () => { throw REBOOT; } } };
+  for (const imp of WebAssembly.Module.imports(module)) {
+    if (imp.module === 'env') continue;
+    (imports[imp.module] ??= {})[imp.name] = () => 0;
+  }
+  ex = (await WebAssembly.instantiate(module, imports)).exports;
+  if (ex._initialize) ex._initialize();
+  if (flash) mem8().set(flash, ex.demo_flash());
+  writeInputs(currentInputs());
+  snapshot = null; log = []; cursor = 0;
+  ex.demo_init(flash ? 1 : 0);
+}
+
+async function tick() {
+  timer = null;
+  let next = FRAME_MS;
+  try {
+    if (snapshot) {                       // continue a screen that was waiting
+      log.push(currentInputs());
+      mem8().set(snapshot);
+      ex.__stack_pointer.value = stackTop;
+    } else {                              // a fresh pass of the GUI loop
+      writeInputs(currentInputs());
+      snapshot = mem8().slice();
+      stackTop = ex.__stack_pointer.value;
+      log = [];
+    }
+    moved = 0;
+    cursor = 0;
+    ex.demo_frame(FRAME_MS);
+    snapshot = null;
+    present();
+  } catch (e) {
+    if (e === YIELD) {
+      next = pendingDelay;
+    } else if (e === REBOOT) {
+      const p = ex.demo_flash(), flash = mem8().slice(p, p + ex.demo_flash_size());
+      await boot(flash);
+    } else {
+      $('error').textContent = 'The demo stopped: ' + e.message;
+      return;
+    }
+  }
+  timer = setTimeout(tick, next);
+}
+
+async function restart() {
+  if (timer) clearTimeout(timer);
+  let flash = null;
+  if (ex) { const p = ex.demo_flash(); flash = mem8().slice(p, p + ex.demo_flash_size()); }
+  await boot(flash);
+  tick();
+}
+
+// ---- buttons ----
+function press(bit, on, el) {
+  held = on ? (held | bit) : (held & ~bit);
+  if (el) el.classList.toggle('down', on);
+}
+document.querySelectorAll('.key button').forEach(b => {
+  const bit = +b.dataset.bit;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); b.setPointerCapture(e.pointerId); press(bit, true, b); });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) b.addEventListener(type, () => press(bit, false, b));
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+const KEYS = { ArrowDown: ['kDown', 1], ArrowUp: ['kUp', 2], Enter: ['kOk', 4] };
+addEventListener('keydown', e => {
+  const k = KEYS[e.key];
+  if (!k || (e.target instanceof Element && e.target.closest('.tools'))) return; // Enter on a tool button is that button's
+  e.preventDefault();
+  if (!e.repeat) press(k[1], true, $(k[0]));
+});
+addEventListener('keyup', e => { const k = KEYS[e.key]; if (k) { e.preventDefault(); press(k[1], false, $(k[0])); } });
+addEventListener('blur', () => { held = 0; document.querySelectorAll('.down').forEach(el => el.classList.remove('down')); });
+
+$('tTip').addEventListener('click', () => {
+  tipOut = !tipOut;
+  $('tTip').setAttribute('aria-pressed', tipOut);
+  $('tTip').textContent = tipOut ? 'Put the tip back' : 'Pull the tip out';
+});
+$('tMove').addEventListener('click', () => { moved = 1; });
+$('tSound').addEventListener('click', () => {
+  soundOn = !soundOn;
+  $('tSound').setAttribute('aria-pressed', soundOn);
+  $('tSound').textContent = soundOn ? 'Sound on' : 'Sound off';
+  if (!soundOn) { buzzHz = -1; buzz(0); }
+});
+$('tRestart').addEventListener('click', restart);
+
+(async () => {
+  try {
+    module = await WebAssembly.compile(Uint8Array.from(atob(WASM_B64), c => c.charCodeAt(0)));
+    await restart();
+  } catch (e) {
+    $('error').textContent = 'The firmware code could not start in this browser (' + e.message + '). Try a current Chrome, Edge, Firefox or Safari.';
+  }
+})();
+</script>
+</body>
+</html>
