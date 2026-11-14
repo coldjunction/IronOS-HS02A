@@ -127,6 +127,8 @@ static void displayBuzzerEnabled(void);
 static void displayButtonLight(void);
 static void displayLowVoltageAllowed(void);
 static void setOpenDebugPages(void);
+static void setCalibrate100(void);
+static void displayCalibrate100(void);
 static void displayColourReady(void);
 static void displayColourHeating(void);
 static void displayColourBoost(void);
@@ -485,6 +487,10 @@ const menuitem advancedMenu[] = {
   /* Calibrate Cold Junktion Compensation at next boot */
   {SETTINGS_DESC(SettingsItemIndex::CalibrateCJC), setCalibrate, displayCalibrate, nullptr, SettingsOptions::CalibrateCJC, SettingsItemIndex::CalibrateCJC, 7},
   /* Voltage input cal */
+#if defined(LCD_160x80) && defined(HS02_THEME_CARD)
+  /* HS-02 card theme: a measured 100 C point for the temperature curve (tip in boiling water) */
+  {SETTINGS_DESC(SettingsItemIndex::Calibrate100), setCalibrate100, displayCalibrate100, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::Calibrate100, 7},
+#endif
   {SETTINGS_DESC(SettingsItemIndex::VoltageCalibration), setCalibrateVIN, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::VoltageCalibration, 5},
   /* Power Pulse adjustment */
   {SETTINGS_DESC(SettingsItemIndex::PowerPulsePower), nullptr, displayPowerPulse, nullptr, SettingsOptions::KeepAwakePulse, SettingsItemIndex::PowerPulsePower, 5},
@@ -970,6 +976,85 @@ static void displayLowVoltageAllowed(void) { Display::drawCheckbox(getSettingVal
 // that the card menu (SettingsMenu.cpp) picks up straight after calling it.
 bool        hs02DebugPagesRequested = false;
 static void setOpenDebugPages(void) { hs02DebugPagesRequested = true; }
+
+// ---- "Calibrate at 100C" --------------------------------------------------------------------
+// The curve in Fnirsi/ThermoModel.cpp has no measured point between the cold end (25 C) and
+// 223 C. This stores one: the tip amplifier's reading while the tip is held in boiling water,
+// with the heater off (it is off everywhere in the menu). Water boils about 1 C lower for every
+// 300 m above sea level; 100 C is assumed.
+// The reading has to be between 250 and 4000 uV above the zero reading to be taken. The
+// port's curve and the stock firmware's nominal curve put 100 C at roughly 1700 to 2400 uV, but
+// the first real HS-02A tried read about 1300 (only 400 above the offset of 900 it still had
+// stored then): its amplifier's zero is below 0, so the first part of the signal is cut off. The lower limit only has to rule out a tip that is not
+// in hot water at all.
+constexpr uint32_t kCal100MinAboveZerouV = 250, kCal100MaxAboveZerouV = 4000;
+
+// A screen of small-font rows, 16 pixels apart; with a question, "no / no / yes" under it in
+// button order (DOWN, UP, OK).
+static void cal100DrawRows(const char *const *rows, uint8_t count, bool question) {
+  Display::clearScreen();
+  for (uint8_t row = 0; row < count; row++) {
+    Display::setCursor(0, row * 16);
+    Display::print(rows[row], FontStyle::SMALL);
+  }
+  if (question) {
+    Display::setCursor(0, 64);
+    Display::print(SmallSymbolHintNo, FontStyle::SMALL);
+    Display::setCursor(54, 64);
+    Display::print(SmallSymbolHintNo, FontStyle::SMALL);
+    Display::setCursor(108, 64);
+    Display::print(SmallSymbolHintYes, FontStyle::SMALL);
+  }
+  LCD::setMonoRegions(0, 0, 255, 64);
+}
+
+static void setCalibrate100(void) {
+  const char *const ask[] = {SmallCal100Ask1, SmallCal100Ask2, SmallCal100Ask3};
+  for (;;) { // OK is yes, any other button leaves
+    cal100DrawRows(ask, 3, true);
+    const ButtonState answer = getButtonState();
+    if (answer == BUTTON_OK_SHORT) {
+      break;
+    }
+    if (answer != BUTTON_NONE) {
+      return;
+    }
+    Display::refresh();
+    osDelay(40);
+  }
+  // 16 samples, 100 ms apart, as the CJC calibration takes them
+  uint32_t          sum    = 0;
+  const char *const busy[] = {SmallCal100Busy};
+  for (uint8_t sample = 0; sample < 16; sample++) {
+    cal100DrawRows(busy, 1, false);
+    Display::refresh();
+    osDelay(TICKS_100MS);
+    sum += getTipRawTemp(1);
+  }
+  const uint32_t readinguV = TipThermoModel::convertTipRawADCTouV(sum / 16, true);
+  const uint32_t zerouV    = getSettingValue(SettingsOptions::CalibrationOffset);
+  const bool     plausible = readinguV >= zerouV + kCal100MinAboveZerouV && readinguV <= zerouV + kCal100MaxAboveZerouV;
+  if (plausible) {
+    setSettingValue(SettingsOptions::Cal100uV, (uint16_t)readinguV);
+    saveSettings();
+  }
+  const char *const saved[]  = {SmallCal100Saved};
+  const char *const refuse[] = {SmallCal100Bad1, SmallCal100Bad2};
+  for (;;) { // the result, with the reading, until a button is pressed
+    cal100DrawRows(plausible ? saved : refuse, plausible ? 1 : 2, false);
+    Display::setCursor(0, plausible ? 16 : 32);
+    Display::printNumber(readinguV, 5, FontStyle::SMALL);
+    Display::print(SmallSymbolLiveMicrovolts, FontStyle::SMALL);
+    if (getButtonState() != BUTTON_NONE) {
+      return;
+    }
+    Display::refresh();
+    osDelay(40);
+  }
+}
+
+// A tick once a 100 C point is stored
+static void displayCalibrate100(void) { Display::drawCheckbox(getSettingValue(SettingsOptions::Cal100uV) != 0); }
 
 // Colour name for one of the accent colour settings; 0 is "Auto" (the theme's own colour).
 static void displayCardColour(SettingsOptions option) {

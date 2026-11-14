@@ -7,7 +7,7 @@
 // State 3 = buzzer timer
 
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
-void hs02StepSetTemperature(bool up);       // HomeScreen.cpp
+void hs02StepSetTemperature(bool up, bool large); // HomeScreen.cpp
 void hs02SaveSetTemperatureIfDue(bool now); // HomeScreen.cpp
 #endif
 
@@ -69,12 +69,19 @@ OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt)
   // otherwise we are unlocked
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
   // Card theme, to match the home screen:
-  //   UP / DOWN short   target up / down by one step, at once
-  //   UP / DOWN held    the temperature screen (larger steps while held)
+  //   UP / DOWN short   target up / down by one small step (5 C unless set larger)
+  //   UP / DOWN held    target up / down by the large step (10 C unless set larger), repeating,
+  //                     faster the longer it is held: the settings menu's pacing. The number
+  //                     changes on this screen; no other screen opens.
   //   OK short          stop heating, back to the home screen
   //   OK held           boost for as long as it is held
   //   UP + DOWN held    lock the buttons, if locking is allowed
   hs02SaveSetTemperatureIfDue(false);
+  static uint32_t repeatTimer = 0, repeatAcceleration = 0; // as in the card menu (SettingsMenu.cpp)
+  if (buttons != BUTTON_B_LONG && buttons != BUTTON_F_LONG) {
+    repeatTimer        = 0;
+    repeatAcceleration = 0;
+  }
   switch (buttons) {
   case BUTTON_NONE:
     // BUTTON_OK_LONG is reported once per hold (Buttons.cpp), then BUTTON_NONE: boost goes on
@@ -97,13 +104,19 @@ OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt)
   case BUTTON_B_SHORT:
   case BUTTON_F_SHORT:
     // UP is "+" unless "Swap + - keys" is on
-    hs02StepSetTemperature((buttons == BUTTON_B_SHORT) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0));
+    hs02StepSetTemperature((buttons == BUTTON_B_SHORT) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0), false);
     break;
   case BUTTON_B_LONG:
   case BUTTON_F_LONG:
-    hs02SaveSetTemperatureIfDue(true);
-    cxt->transitionMode = TransitionAnimation::None; // the temperature screen is a mono screen
-    return OperatingMode::TemperatureAdjust;
+    if (xTaskGetTickCount() + repeatAcceleration > repeatTimer + PRESS_ACCEL_INTERVAL_MAX) {
+      repeatTimer = xTaskGetTickCount();
+      repeatAcceleration += PRESS_ACCEL_STEP;
+      if ((PRESS_ACCEL_INTERVAL_MAX - repeatAcceleration) < PRESS_ACCEL_INTERVAL_MIN) {
+        repeatAcceleration = PRESS_ACCEL_INTERVAL_MAX - PRESS_ACCEL_INTERVAL_MIN;
+      }
+      hs02StepSetTemperature((buttons == BUTTON_B_LONG) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0), true);
+    }
+    break;
   case BUTTON_BOTH_LONG:
     if (getSettingValue(SettingsOptions::LockingMode)) {
       if (cxt->scratch_state.state1 == 0) {
@@ -210,6 +223,24 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
 
   // Update status
   int error = currentTempTargetDegC - TipThermoModel::getTipInC();
+#if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
+  // Card theme: one beep when the tip first reaches the target after heating starts, and one
+  // more only when a clearly higher target (20 C or more above the one it beeped for: boost, or
+  // the set temperature turned well up) is reached. The reading drifting out of the +-10 C
+  // window and back, as it does under load, does not beep again.
+  // state5: has beeped; state6: the target it beeped for.
+  if (error >= -10 && error <= 10) {
+    if (!cxt->scratch_state.state5 || currentTempTargetDegC >= (TemperatureType_t)cxt->scratch_state.state6 + 20) {
+      setBuzzer(true);
+      cxt->scratch_state.state3 = xTaskGetTickCount() + TICKS_SECOND / 3;
+      cxt->scratch_state.state5 = true;
+      cxt->scratch_state.state6 = (uint16_t)currentTempTargetDegC;
+    }
+    setStatusLED(LED_HOT);
+  } else {
+    setStatusLED(LED_HEATING);
+  }
+#else
   if (error >= -10 && error <= 10) {
     // converged
     if (!cxt->scratch_state.state5) {
@@ -222,6 +253,7 @@ OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt) {
     setStatusLED(LED_HEATING);
     cxt->scratch_state.state5 = false;
   }
+#endif
   if (cxt->scratch_state.state3 != 0 && xTaskGetTickCount() >= cxt->scratch_state.state3) {
     setBuzzer(false);
   }

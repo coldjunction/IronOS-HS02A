@@ -23,11 +23,13 @@ extern bool hs02MenuWaitForRelease; // SettingsMenu.cpp
 // The heating screen (Soldering.cpp) steps the target with the same two functions.
 static TickType_t hs02SetTempSaveAt = 0;
 
-void hs02StepSetTemperature(bool up) {
+// large: the step of a held button ("Temp change long", at least 10) instead of that of a press
+// ("Temp change short", at least 5).
+void hs02StepSetTemperature(bool up, bool large) {
   const bool fahrenheit = getSettingValue(SettingsOptions::TemperatureInF);
-  int16_t    step       = getSettingValue(SettingsOptions::TempChangeShortStep);
-  if (step < 5) {
-    step = 5;
+  int16_t    step       = getSettingValue(large ? SettingsOptions::TempChangeLongStep : SettingsOptions::TempChangeShortStep);
+  if (step < (large ? 10 : 5)) {
+    step = large ? 10 : 5;
   }
   const int16_t lowest  = fahrenheit ? MIN_TEMP_F : MIN_TEMP_C;
   const int16_t highest = fahrenheit ? MAX_TEMP_F : MAX_TEMP_C;
@@ -78,7 +80,7 @@ OperatingMode handleHomeButtons(const ButtonState buttons, guiContext *cxt) {
   hs02SaveSetTemperatureIfDue(false);
   if (buttons == BUTTON_B_SHORT || buttons == BUTTON_F_SHORT) {
     // UP is "+" unless "Swap + - keys" is on, as on the temperature screen
-    hs02StepSetTemperature((buttons == BUTTON_B_SHORT) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0));
+    hs02StepSetTemperature((buttons == BUTTON_B_SHORT) != (getSettingValue(SettingsOptions::ReverseButtonTempChangeEnabled) != 0), false);
     return OperatingMode::HomeScreen;
   }
   if (buttons == BUTTON_B_LONG) { // UP held: settings menu

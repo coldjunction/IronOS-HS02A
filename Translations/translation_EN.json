@@ -379,6 +379,10 @@
       "displayText": "Button\nlight",
       "description": "White light behind the DOWN and UP buttons"
     },
+    "Calibrate100": {
+      "displayText": "Calibrate\nat 100C",
+      "description": "Store the tip reading at 100 C: hold the tip in boiling water, with the heater off"
+    },
     "DebugPages": {
       "displayText": "Debug\npages",
       "description": "Open the debug pages"

@@ -78,6 +78,13 @@ extern const char *SmallCardConfirmReset3;
 extern const char *SmallHs02CjcWarm1;
 extern const char *SmallHs02CjcWarm2;
 extern const char *SmallHs02CjcWarm3;
+extern const char *SmallCal100Ask1;
+extern const char *SmallCal100Ask2;
+extern const char *SmallCal100Ask3;
+extern const char *SmallCal100Busy;
+extern const char *SmallCal100Saved;
+extern const char *SmallCal100Bad1;
+extern const char *SmallCal100Bad2;
 // Card theme: whole words for values the stock menu shows as one letter
 extern const char *LargeCardWordOff;
 extern const char *LargeCardColour0;
@@ -174,6 +181,7 @@ enum class SettingsItemIndex : uint8_t {
   ColourMenu,
   LowVoltageAllowed,
   ButtonLight,
+  Calibrate100,
   DebugPages,
   NUM_ITEMS,
 };

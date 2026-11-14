@@ -86,8 +86,9 @@ enum SettingsOptions {
   ColourMenu                     = 61, // settings menu
   LowVoltageAllowed              = 62, // HS-02: 1 = a DC supply below 9 V is accepted (down to DC_MINIMUM_VOLTAGE_X10)
   ButtonLight                    = 63, // HS-02: 1 = the white light behind the DOWN and UP buttons is on
+  Cal100uV                       = 64, // HS-02: tip amplifier reading in uV with the tip at 100 C; 0 = not calibrated
   //
-  SettingsOptionsLength = 64, // End marker
+  SettingsOptionsLength = 65, // End marker
 };
 
 typedef enum {

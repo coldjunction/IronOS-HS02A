@@ -631,6 +631,12 @@
       "description": "White light behind the DOWN and UP buttons"
     },
     {
+      "id": "Calibrate100",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Store the tip reading at 100 C: hold the tip in boiling water, with the heater off"
+    },
+    {
       "id": "DebugPages",
       "maxLen": 7,
       "maxLen2": 15,

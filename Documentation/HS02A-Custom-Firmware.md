@@ -26,7 +26,7 @@ bugparty. This fork is a set of changes on top of their work.
 4. [Screens](#screens)
 5. [Heating features](#heating-features)
 6. [Settings menu, entry by entry](#settings-menu-entry-by-entry)
-7. [Calibrating the cold end (CJC)](#calibrating-the-cold-end-cjc)
+7. [Calibrating the temperature](#calibrating-the-temperature)
 8. [Debug pages](#debug-pages)
 9. [Tunes](#tunes)
 10. [Power supplies](#power-supplies)
@@ -72,7 +72,7 @@ The three buttons, left to right as you hold the iron with the screen facing you
 | Action | Result |
 |---|---|
 | Press Up / Down | Target temperature up / down to the next step, as on the ready screen |
-| Hold Up or Down | Open the temperature screen and keep changing the target, in larger steps, for as long as the button is held |
+| Hold Up or Down | Target up / down by "Temp change long" (10 degrees unless set larger), repeating, faster the longer it is held. The number changes on this screen. |
 | Press OK | Stop heating and go back to the ready screen |
 | Hold OK | Boost: heat to the boost temperature for as long as the button is held |
 | Hold Up and Down together | Lock or unlock the buttons, if "Allow locking buttons" is on |
@@ -138,7 +138,9 @@ half a second. The power bar is not averaged.
   locks the buttons, so the target cannot be changed by accident. The same hold unlocks them.
 - **Power pulse.** Some power banks switch off when the load is small. The iron can draw a
   short pulse of power at intervals to keep them on.
-- **Buzzer.** A beep when the tip reaches the target temperature.
+- **Buzzer.** One beep when the tip first reaches the target after heating starts, and one more
+  only when a target at least 20 degrees higher is reached (boost, or the temperature turned up).
+  It does not beep again when the reading dips under load and recovers.
 - **Status light.** The light in the OK button blinks while heating, is steady when hot, and
   flashes slowly while the tip is still hot after heating has stopped.
 
@@ -181,7 +183,7 @@ hall sensor support.
 | Entry | What it does |
 |---|---|
 | Temperature unit | °C or °F. Stored temperatures are converted and rounded down to a multiple of 10, so 170 °C becomes 330 °F. |
-| Display orientation | Right-handed, left-handed, or automatic from the motion sensor. |
+| Display orientation | Right-handed, left-handed, or automatic from the motion sensor. Automatic turns the screen over once the iron has been tilted about 45° the other way for half a second. |
 | Cooldown flashing | From the port. Has no effect on the colour screens. |
 | Scrolling speed | Speed of long texts that scroll across the screen. |
 | Swap + - keys | Swaps Down and Up for temperature changes (ready screen and temperature screen). |
@@ -202,7 +204,8 @@ fixed button layout.
 | Entry | What it does |
 |---|---|
 | Power limit | Maximum average heater power, up to 100 W (default 100 W). Lower it for a supply that cannot deliver 100 W at its voltage. |
-| Calibrate CJC at next boot | See [Calibrating the cold end](#calibrating-the-cold-end-cjc). |
+| Calibrate CJC at next boot | Reads the amplifier with a cold tip at the next start. See [Calibrating the temperature](#calibrating-the-temperature). |
+| Calibrate at 100C (new) | Stores the reading with the tip in boiling water. Shows a tick once a point is stored. Same section. |
 | Calibrate input voltage | Adjusts the supply voltage reading: Down and Up change the shown voltage until it matches a meter, OK saves. |
 | Power pulse | Power of the keep-awake pulse for power banks, or "Off". The two entries below appear when it is on. |
 | Power pulse delay | Time between pulses, in steps of 2.5 s. |
@@ -210,26 +213,79 @@ fixed button layout.
 | Restore default settings | Resets every setting, including the CJC calibration. |
 | Debug pages (new) | Opens the [debug pages](#debug-pages). |
 
-## Calibrating the cold end (CJC)
+## Calibrating the temperature
 
-The HS-02A has no temperature sensor in the handle. The firmware assumes the cold end of the
-tip is at 25 °C and needs to know what the tip amplifier reads when the tip is at that
-temperature (the "offset"). The default is 0, which is what the development iron measures.
-If you update from a build before 36, your settings still hold the old default of 900 µV, and
-low temperatures (below about 55 °C) all read as 25 °C until you calibrate once.
+Do this once after installing. It takes ten minutes and decides whether the number on the
+screen is the temperature of the tip.
+
+### Why it is needed
+
+The tip has one sensor, a thermocouple. It produces a small voltage that grows with how much
+hotter the tip is than the end that plugs into the handle. An amplifier makes that voltage
+readable. Two things are unknown on a new iron:
+
+- **The amplifier's zero:** what it reads when there is no temperature difference at all. It
+  differs from iron to iron, and it shifts every reading. 100 µV of error is about 4 °C at
+  soldering temperatures. The development iron was about 1500 µV away from the curve the port
+  shipped with, which made it run an estimated 50 °C hotter than it displayed.
+- **The temperature of the handle end.** There is no sensor there. The firmware assumes 25 °C.
+
+### Step 1: Calibrate CJC (cold)
+
+This reads the amplifier with a cold tip.
 
 1. Leave the iron unplugged for at least 30 minutes with the tip fitted.
-2. Plug it in, open **Advanced settings → Calibrate CJC at next boot** and confirm.
+2. Plug it in, open **Advanced settings → Calibrate CJC at next boot** and press OK for yes.
+   The request is stored at once.
 3. Unplug and plug in again. The calibration runs at start-up and takes about two seconds.
 
 If the board reads warm at start-up the iron asks "Iron is warm / Calibrate anyway?". Answer
-no (Down or Up) unless you know the iron is cold. A tip that reads 40 °C or more is skipped
-without a message; the calibration stays requested for the next start.
+no (Down or Up) unless you know the iron is cold.
 
-The calibration only affects readings below about 223 °C. Readings above that come from fixed
-measured points.
+Afterwards the Live sensors debug page shows the stored value as `ofs`. If it is above 0, the
+zero is known exactly and step 2 only refines the low end. If it is 0, the amplifier's real
+zero may be below 0, where this step cannot see it, and step 2 is what corrects the iron.
 
-The request is stored as soon as you confirm it, so you can unplug straight from the menu.
+### Step 2: Calibrate at 100C (boiling water)
+
+This reads the amplifier with the tip at a known temperature.
+
+1. Bring a small pot of water to a rolling boil and keep it boiling. Water poured from a
+   kettle into a cup is already several degrees below 100 °C and will not do.
+2. Open **Advanced settings → Calibrate at 100C**. The heater is off while you are in the
+   menu. Do not heat the iron in the water: the sensor sits next to the heater and would read
+   far above the water's temperature, and the water spits.
+3. Hold the front 2 cm of the tip in the water for 30 seconds. Keep the handle, and the steam,
+   away from each other as far as you can.
+4. Press OK for yes and keep the tip in the water while "Measuring" shows (two seconds).
+
+The screen then shows "100C saved at" and the reading in microvolts, or "Not near 100C,
+Nothing saved" if the reading was outside 250 to 4000 µV above the zero. The menu entry shows
+a tick once a point is stored. Running it again replaces the stored point.
+
+A tip that has been in water should be dried afterwards. Dipping a cold tip in hot water does
+it no harm; what damages tips is plunging a hot one into water.
+
+### Checking the result
+
+- A cold iron shows 25 °C, and the tip in boiling water shows about 100 °C.
+- Put a drop of water on the tip. At a set 100 °C it should sit there and dry slowly; at about
+  105 to 110 °C it should hiss and boil off.
+- For soldering temperatures, melt a solder joint: leaded solder melts at 183 °C, lead-free at
+  about 217 to 220 °C. Raise the target in 5 °C steps and wait 20 seconds at each.
+
+### What it cannot do
+
+- **It is an estimate above 100 °C.** The 100 °C point fixes that reading and shifts the rest of
+  the curve by the zero it finds. The curve's shape above that comes from one other iron. Expect
+  it to be within about 15 °C at soldering temperatures until checked against solder.
+- **It assumes water boils at 100 °C.** It boils about 1 °C lower for every 300 m above sea level.
+- **It cannot show less than 25 °C.** The sensor only measures how much hotter the tip is than
+  the handle end, and the handle end is assumed to be at 25 °C. A tip colder than the handle
+  would produce a negative voltage, which the amplifier cannot output, so the reading stops at
+  the assumed room temperature. On an iron whose zero is below 0, the first degrees above room
+  temperature are also invisible; the display climbs from 25 °C once the signal appears.
+- **"Restore default settings" clears both calibrations.**
 
 ## Debug pages
 

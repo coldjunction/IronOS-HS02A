@@ -8,7 +8,15 @@
 #ifndef DRIVERS_KXTJ3_DEFINES_H_
 #define DRIVERS_KXTJ3_DEFINES_H_
 
+// Tilt at which the display orientation is taken as left- or right-handed, on the axis along
+// which the screen flips; about 4096 counts per g. 2000 is a tilt of about 29 degrees, 2900
+// about 45. On the HS-02 the smaller value flipped the screen when the iron was only turned a
+// little past level.
+#ifdef MODEL_HS02
+#define KXJT3_ORIENTATION_THRESHOLD 2900
+#else
 #define KXJT3_ORIENTATION_THRESHOLD 2000
+#endif
 
 #define KXTJ3_I2C_ADDRESS     (0x0E << 1)
 #define KXTJ3_REG_WHO_AM_I_ID 0x35

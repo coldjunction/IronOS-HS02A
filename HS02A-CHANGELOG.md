@@ -3,6 +3,29 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 40
+
+- **"Calibrate at 100C" (new, Advanced settings).** Hold the tip in boiling water with the
+  heater off, confirm, and the iron stores that reading as its 100 °C point.
+- **The temperature curve now corrects for each iron's amplifier zero.** The curve is kept as
+  signal (reading minus the amplifier's zero) instead of raw readings. The zero comes from
+  "Calibrate CJC" when it is above 0, and from the 100 °C point when CJC reads 0, where the
+  true zero can be below 0 and CJC cannot see it. On the development iron the amplifier reads
+  0 cold and about 1300 µV at 100 °C, a zero near -700 µV. Before this change that iron showed
+  about 40 °C in boiling water and, by the same offset, far too little at soldering
+  temperatures: the tip was an estimated 50 °C hotter than displayed. After calibrating, a
+  drop of water on the tip sat still at a set 100 °C and boiled off at 105 °C.
+  **Expect the same set temperature to give a cooler tip than before on an iron like that.**
+- **One beep per heat-up.** The buzzer sounds when the tip first reaches the target, and again
+  only when a target at least 20 °C higher is reached (boost, or the set temperature turned
+  up). It no longer beeps each time the reading drifts out of range and back under load.
+- **Heating screen: holding Up or Down changes the target on the spot**, by "Temp change long"
+  (10 °C unless set larger), repeating at the settings menu's pace. No other screen opens. A
+  press still changes it by 5 °C.
+- **Screen flip needs a clear tilt.** With automatic orientation the iron has to be tilted
+  about 45° the other way (was about 29°) and held there for half a second before the screen
+  turns over.
+
 ## Build 36
 
 - **Fixed: "Calibrate CJC" never ran.** The request was only written to memory when the menu
@@ -91,13 +114,20 @@ GPLv3; this is a modified version and is published under the same licence.
   zero, so such a unit may show the MCU temperature for a cold tip and read some degrees high
   when warm. It may also apply the calibration offset differently from the fallback curve. Not
   confirmed on hardware.
-- **The tip amplifier cannot read below its zero.** On the development iron it reads exactly 0
-  with a cold tip, so a tip colder than the handle (or an amplifier whose real zero is slightly
-  negative) shows 25 °C until the signal rises above 0. Soldering temperatures are not affected.
+- **Calibrate before trusting the display.** The tip amplifier's zero differs from iron to
+  iron by enough to matter: 100 µV is about 4 °C at soldering temperatures, and the development
+  iron was off by about 1500 µV against the port's curve. Run "Calibrate CJC" and then
+  "Calibrate at 100C". An uncalibrated iron whose zero is below 0 runs hotter than it shows.
+- **The 100 °C calibration is an estimate above 100 °C.** It fixes the reading at 100 °C and
+  shifts the rest of the curve by the zero it finds, using an assumed signal of 2000 µV at
+  100 °C and assuming water boils at 100 °C (about 1 °C less per 300 m above sea level). The
+  result at soldering temperatures is probably within 15 °C, and has not been checked against
+  a reference there.
+- **Nothing below 25 °C is shown.** The sensor measures how much hotter the tip is than the
+  end it plugs into, which is assumed to be at 25 °C. A tip colder than that end would give a
+  negative voltage, which the amplifier cannot output.
 - **The CJC "iron is warm" check is weak.** It relies on the MCU's own temperature and did not
   trigger in a test straight after heating. Only calibrate an iron you know is cold.
-- **Readings below about 223 °C depend on the CJC calibration.** Run "Calibrate CJC" once with
-  the iron cold (unplugged for 30 minutes or more).
 - **No tip-resistance or short-circuit detection.** A missing tip is detected.
 - **PID gains were tuned on one iron and in a simulator.** Overshoot above 400 °C and with
   other tip shapes is not measured.

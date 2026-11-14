@@ -42,43 +42,78 @@ uint32_t interpolateFallbackTempCx10(uint32_t tipuV, uint32_t loweruV, uint32_t 
 }
 
 uint32_t fallbackTipTempCx10(uint32_t tipuV) {
-  // Absolute tip temperatures measured on one HS-02A without usable factory calibration.
+  // Absolute tip temperature from the thermocouple signal, for units without a usable factory
+  // calibration.
   //
-  // tipuV arrives with the calibration offset (the amplifier's reading at zero temperature
-  // difference) already removed. The points were measured by the port's author with an offset
-  // of 900 uV removed (kMeasuredWithOffset), so they are kept here as amplifier-input
-  // microvolts (measured value + 900) and the current offset is added back before comparing.
-  // That way the offset setting, whatever it is, moves only the cold end of the curve and
-  // leaves the measured points where they were.
+  // The curve is in SIGNAL microvolts: the amplifier reading minus that unit's zero reading (its
+  // reading at no temperature difference). The points from 223 C up were measured by the
+  // port's author on one HS-02A, with a zero of 900 uV taken off. The cold end: at no signal
+  // the tip is as warm as the point it plugs into, which no sensor on this board measures;
+  // 25 C is assumed, as the stock firmware does. The 100 C point (2000 uV) is not measured: it
+  // is the straight line from 25 C to 223 C, bent by the 3 % that the stock firmware's own
+  // curve is flatter by at the low end.
   //
-  // The cold end: at the zero reading the tip is as warm as the point it plugs into, which no
-  // sensor on this board measures; 25C is assumed, as the stock firmware does. An offset larger
-  // than the unit's real zero reading makes everything from room temperature up to that reading
-  // show as 25C (with the port's old default of 900 uV: up to roughly 55C).
-  constexpr uint32_t kMeasuredWithOffset = 900;
-  const uint32_t offset = getSettingValue(SettingsOptions::CalibrationOffset);
-  const uint32_t inputuV = tipuV + offset;
-  constexpr uint32_t p223 = 5400 + kMeasuredWithOffset, p273 = 6680 + kMeasuredWithOffset, p350 = 8370 + kMeasuredWithOffset;
-  constexpr uint32_t p400 = 10540 + kMeasuredWithOffset, p450 = 12090 + kMeasuredWithOffset, p500 = 13640 + kMeasuredWithOffset;
-  if (inputuV <= p223) {
-    if (offset >= p223) {
-      return 250;
+  // The zero differs from unit to unit by more than the curve can ignore: 100 uV is about 4 C
+  // at soldering temperatures. There are two ways to find it:
+  //   - "Calibrate CJC" reads the amplifier with a cold tip. That is exact if the zero is above
+  //     0. If it is below, the amplifier's output sits at its lower limit, the reading is 0,
+  //     and the true zero stays unknown.
+  //   - "Calibrate at 100C" reads it with the tip in boiling water. The zero is then that
+  //     reading minus the signal expected at 100 C, and it may come out negative. Measured on
+  //     one HS-02A: 0 uV cold and about 1300 uV at 100 C, so a zero near -700 uV. Without this
+  //     correction that iron showed about 40 C in boiling water and, by the same 1.5 mV or so,
+  //     far too little at soldering temperatures (the tip hotter than shown).
+  // A CJC offset above 0 is used as it is. With a CJC offset of 0 the 100 C point decides.
+  constexpr int32_t kSignalAt100 = 2000;
+  constexpr int32_t s223 = 5400, s273 = 6680, s350 = 8370, s400 = 10540, s450 = 12090, s500 = 13640;
+
+  const int32_t offset = getSettingValue(SettingsOptions::CalibrationOffset);
+  const int32_t cal100 = getSettingValue(SettingsOptions::Cal100uV);
+  const int32_t input  = (int32_t)tipuV + offset; // the amplifier reading; tipuV has the offset taken off
+
+  int32_t zero  = offset;
+  int32_t at100 = kSignalAt100; // signal at 100 C
+  if (cal100 != 0) {
+    if (offset == 0) {
+      zero = cal100 - kSignalAt100; // may be negative
+    } else if (cal100 > offset) {
+      at100 = cal100 - offset; // the zero is known: the 100 C point shapes the low end instead
     }
-    return 250 + (tipuV * (2230 - 250)) / (p223 - offset);
   }
-  if (inputuV <= p273) {
-    return interpolateFallbackTempCx10(inputuV, p223, 2230, p273, 2730);
+
+  int32_t signal = input - zero;
+  if (zero < 0) {
+    // The amplifier cannot go below 0, so readings near 0 only say "no warmer than this".
+    // Rather than jump from 25 C to that limit with the first count, the first 300 uV of
+    // reading run from 25 C up to where the curve is true again.
+    constexpr int32_t kBlend = 300;
+    if (input < kBlend) {
+      signal = (input * (kBlend - zero)) / kBlend;
+    }
   }
-  if (inputuV <= p350) {
-    return interpolateFallbackTempCx10(inputuV, p273, 2730, p350, 3500);
+  if (signal <= 0) {
+    return 250;
   }
-  if (inputuV <= p400) {
-    return interpolateFallbackTempCx10(inputuV, p350, 3500, p400, 4000);
+  const uint32_t x = (uint32_t)signal;
+  if (x <= (uint32_t)at100) {
+    return interpolateFallbackTempCx10(x, 0, 250, at100, 1000);
   }
-  if (inputuV <= p450) {
-    return interpolateFallbackTempCx10(inputuV, p400, 4000, p450, 4500);
+  if (x <= (uint32_t)s223) {
+    return interpolateFallbackTempCx10(x, at100, 1000, s223, 2230);
   }
-  return interpolateFallbackTempCx10(inputuV, p450, 4500, p500, 5000);
+  if (x <= (uint32_t)s273) {
+    return interpolateFallbackTempCx10(x, s223, 2230, s273, 2730);
+  }
+  if (x <= (uint32_t)s350) {
+    return interpolateFallbackTempCx10(x, s273, 2730, s350, 3500);
+  }
+  if (x <= (uint32_t)s400) {
+    return interpolateFallbackTempCx10(x, s350, 3500, s400, 4000);
+  }
+  if (x <= (uint32_t)s450) {
+    return interpolateFallbackTempCx10(x, s400, 4000, s450, 4500);
+  }
+  return interpolateFallbackTempCx10(x, s450, 4500, s500, 5000);
 }
 
 bool     factoryCalChecked = false;

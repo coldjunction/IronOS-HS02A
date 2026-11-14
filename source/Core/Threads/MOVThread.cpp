@@ -206,10 +206,36 @@ void startMOVTask(void const *argument __unused) {
   for (;;) {
     int32_t threshold = movementThresholdForSensitivity(getSettingValue(SettingsOptions::Sensitivity));
     readAccelerometer(tx, ty, tz, rotation);
+#ifdef MODEL_HS02
+    static uint8_t flipVotes = 0;
+    static int8_t  applied   = -1; // -1: nothing yet, 0: right-handed, 1: left-handed
+    if (getSettingValue(SettingsOptions::OrientationMode) != 2) {
+      applied   = -1; // a fixed orientation was chosen in the menu: start afresh when automatic comes back
+      flipVotes = 0;
+    }
+#endif
     if (getSettingValue(SettingsOptions::OrientationMode) == 2) {
+#ifdef MODEL_HS02
+      // The screen only flips once the iron has been held the other way round for half a second
+      // (10 readings, 50 ms apart): one reading past the threshold while the iron is being moved
+      // is not enough.
+      // What was applied last is remembered here rather than read back from the display:
+      // Display::getRotation() is inverted on boards built with DISPLAY_FLIP.
+      const int8_t wanted = rotation == ORIENTATION_LEFT_HAND ? 1 : 0;
+      if (rotation != ORIENTATION_FLAT && wanted != applied) {
+        if (++flipVotes >= 10) {
+          flipVotes = 0;
+          applied   = wanted;
+          Display::setRotation(wanted == 1);
+        }
+      } else {
+        flipVotes = 0;
+      }
+#else
       if (rotation != ORIENTATION_FLAT) {
         Display::setRotation(rotation == ORIENTATION_LEFT_HAND); // link the data through
       }
+#endif
     }
     datax[currentPointer] = (int32_t)tx;
     datay[currentPointer] = (int32_t)ty;

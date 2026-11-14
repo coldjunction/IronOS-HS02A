@@ -59,13 +59,15 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | `hs02HighTempRampStartDegC` | `source/Core/Threads/PIDThread.cpp` | 500 | 350 | Set point in °C above which `startPIDTask()` walks the target up in steps. The target is capped at 450 °C before this test, so the ramp no longer applies and boost and high set points take effect at once. `hs02HighTempRampStepTicks` is unchanged and unused while the start is above `MAX_TEMP_C`. |
 | `GUITaskStackSize` | `source/Core/Src/main.cpp` | `(1024 + 256) / 2` | `1024 / 2` | Length of `GUITaskBuffer`, the GUI task's stack, in 32-bit words. |
 | `lcdInitCmds` delays | `source/Core/Drivers/LCD.cpp` | 120 ms after `ST7735_SWRESET`, 120 ms after `ST7735_SLPOUT`, 10 ms after `ST7735_DISPON` | 150, 200, 100 ms | Waits in the LCD initialisation command chain. |
+| `KXJT3_ORIENTATION_THRESHOLD` | `source/Core/Drivers/KXTJ3_defines.h` | 2900 with `MODEL_HS02`, otherwise 2000 | 2000 | Accelerometer reading, in counts of about 4096 per g, beyond which the iron counts as held left- or right-handed. See the section on that file. |
+| `kCal100MinAboveZerouV`, `kCal100MaxAboveZerouV` | `source/Core/Src/settingsGUI.cpp` | 250, 4000 | not present | Limits in microvolts for the reading that `setCalibrate100()` accepts as the 100 °C point: it has to lie this far above the `CalibrationOffset` setting. The comment says that the port's curve and the stock firmware's nominal curve put 100 °C at roughly 1700 to 2400 microvolts, that the first HS-02A tried read less because its amplifier's zero is below 0 and the first part of the signal is cut off, and that the lower limit only has to rule out a tip that is not in hot water at all. |
 | `kHs02CjcBoardWarmCx10` | `source/Core/Threads/UI/logic/CJC.cpp` | 350 | not present | MCU temperature in tenths of a °C (35.0 °C) at or above which the CJC calibration asks before it runs. |
 | `kCardValueRow`, `kCardHintRow` | `source/Core/Threads/UI/logic/SettingsMenu.cpp` | 32, 64 | not present | Pixel rows where the value and the hint row of the card menu start. |
-| `CUSTOM_BUILD` | `Translations/make_translation.py` | 36 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first debug page. |
+| `CUSTOM_BUILD` | `Translations/make_translation.py` | 40 | not present | Number of this custom build. It becomes the text of `SmallSymbolCustomBuild`, shown on the first debug page. |
 
 ## Settings added
 
-`source/Core/Inc/Settings.h` adds eight entries to `SettingsOptions` and moves the end marker `SettingsOptionsLength` from 56 to 64. Their limits are in `settingsConstants[]` in `source/Core/Src/Settings.cpp`; each has an increment of 1.
+`source/Core/Inc/Settings.h` adds nine entries to `SettingsOptions` and moves the end marker `SettingsOptionsLength` from 56 to 65. Their limits are in `settingsConstants[]` in `source/Core/Src/Settings.cpp`; each has an increment of 1.
 
 | No. | Name | Range | Default | Meaning | Read by |
 | --- | --- | --- | --- | --- | --- |
@@ -77,10 +79,13 @@ There is one set of PID constants. The PID output is in tenths of a watt. `TIP_P
 | 61 | `ColourMenu` | 0–8 | 0 | Accent colour of the settings menu and other mono screens. | `guiHandleDraw()` (`GUIThread.cpp`), `displayColourMenu()` |
 | 62 | `LowVoltageAllowed` | 0–1 | 0 | 1 accepts a DC supply below 9 V, down to `DC_MINIMUM_VOLTAGE_X10`. | `lookupVoltageLevel()` (`Settings.cpp`), `displayLowVoltageAllowed()` |
 | 63 | `ButtonLight` | 0–1 | 1 | 1 switches on the white light behind the DOWN and UP buttons. | `hs02ApplyButtonLight()` (`BSP.cpp`), `displayButtonLight()` |
+| 64 | `Cal100uV` | 0–6000 | 0 | The tip amplifier's reading in microvolts with the tip at 100 °C. 0 means not calibrated. | `fallbackTipTempCx10()` (`ThermoModel.cpp`), `displayCalibrate100()` |
 
 Colour settings: 0 is "Auto", the theme's own colour for that screen. 1 to 8 select a fixed colour from the table in `hs02CardAccent()`: 1 Blue `0x3DFF`, 2 Green `0x262B`, 3 Red `0xEA28`, 4 Orange `0xF4E1`, 5 Yellow `0xFE62`, 6 Purple `0xA45F`, 7 Pink `0xF396`, 8 White `0xFFFF`.
 
 The menu entries for these settings, and the code that reads the five colour settings, are compiled only with `LCD_160x80` and `HS02_THEME_CARD`. The code that reads `BuzzerEnabled`, `LowVoltageAllowed` and `ButtonLight` is outside that guard.
+
+`Cal100uV` is not edited as a value in the menu. `setCalibrate100()`, the handler of the "Calibrate at 100C" menu entry, measures and writes it; that entry is inside the same guard. `fallbackTipTempCx10()`, which reads the setting, is outside it.
 
 One existing row changed: `MinVoltageCells` now ranges from 25 to 35 (2.5 V to 3.5 V per cell); upstream allows 24 to 38. The `CalibrationOffset` row is unchanged, but it takes its lower limit and its default from `MIN_CALIBRATION_OFFSET` and `CALIBRATION_OFFSET`, which are both 0 for this board (see "Other constants in `configuration.h`").
 
@@ -106,7 +111,7 @@ New. Sets or clears `LED1_Pin` on `LED_Port` according to the `ButtonLight` sett
 
 #### `void setBuzzer(bool on)`
 
-Changed. Sets the TIM2 compare value to `BUZZER_VOLUME` when `on` is true and to 0 otherwise. The fork added the condition that the `BuzzerEnabled` setting must be non-zero for the buzzer to sound. Called from `Soldering.cpp` (a beep of a third of a second when the tip comes within 10 °C of the target) and from `SolderingProfile.cpp`.
+Changed. Sets the TIM2 compare value to `BUZZER_VOLUME` when `on` is true and to 0 otherwise. The fork added the condition that the `BuzzerEnabled` setting must be non-zero for the buzzer to sound. Called from `Soldering.cpp` (a beep of a third of a second when the tip reaches the target; see `gui_solderingMode()`) and from `SolderingProfile.cpp`.
 
 #### `void setBuzzerTone(uint16_t hz)`
 
@@ -120,9 +125,29 @@ Changed. With `HS02_THEME_CARD` it returns at once: no logo is drawn and the bac
 
 #### `uint32_t fallbackTipTempCx10(uint32_t tipuV)`
 
-Changed (anonymous namespace). Converts the tip sensor voltage to an absolute tip temperature in tenths of a °C, by linear interpolation through measured points at 223, 273, 350, 400, 450 and 500 °C. `tipuV` is in microvolts with the calibration offset already removed. Called by `TipThermoModel::convertuVToDegCx10()` when no valid factory calibration is found.
+Changed (anonymous namespace). Converts the tip sensor voltage to an absolute tip temperature in tenths of a °C, by linear interpolation along a curve. `tipuV` is in microvolts with the `CalibrationOffset` setting already removed. Called by `TipThermoModel::convertuVToDegCx10()` when no valid factory calibration is found.
 
-The fork changed two things. The points are now stored as amplifier-input microvolts: the measured value plus the local constant `kMeasuredWithOffset` (900), the offset in microvolts that had been removed when the points were measured. The current `CalibrationOffset` setting is added back to `tipuV` before the comparison, so the offset setting, whatever its value, moves only the cold end of the curve. The lowest segment now runs from 25.0 °C at a zero reading to 223.0 °C at the first point; upstream starts it at 30.5 °C. Within that segment the function returns 250 when the offset is at or above the first point, which keeps the divisor `p223 - offset` positive.
+The curve is in signal microvolts: the amplifier reading minus the unit's zero, which is its reading at no temperature difference. Its nodes are:
+
+| Signal in microvolts | Temperature | Source, as the comment gives it |
+| --- | --- | --- |
+| 0 | 25.0 °C | Assumed, as the stock firmware does. At no signal the tip is as warm as the point it plugs into, which no sensor on this board measures. |
+| 2000 (`kSignalAt100`), or the measured value described below | 100.0 °C | Not measured: the straight line from 25 °C to 223 °C, bent by the 3 % by which the stock firmware's own curve is flatter at the low end. |
+| 5400, 6680, 8370, 10540, 12090, 13640 | 223.0, 273.0, 350.0, 400.0, 450.0, 500.0 °C | Measured by the port's author on one HS-02A, with a zero of 900 microvolts taken off. |
+
+The function works in these steps:
+
+- It adds the `CalibrationOffset` setting back to `tipuV`, which gives the amplifier reading.
+- It chooses the zero and the 100 °C node from the settings `CalibrationOffset` and `Cal100uV` (the amplifier reading with the tip at 100 °C, 0 if not calibrated):
+  - `Cal100uV` is 0: the zero is `CalibrationOffset` and the node is at 2000 microvolts.
+  - `Cal100uV` is not 0 and `CalibrationOffset` is 0: the zero is `Cal100uV` − 2000 microvolts, which can be negative. The node stays at 2000 microvolts.
+  - Both are above 0: the zero is `CalibrationOffset`. If `Cal100uV` is above `CalibrationOffset`, the node moves to `Cal100uV` − `CalibrationOffset`, so the 100 °C point shapes the low end of the curve; otherwise `Cal100uV` is not used.
+- The signal is the reading minus the zero. If the zero is negative and the reading is below 300 microvolts (`kBlend`), the signal is instead the reading × (300 − zero) / 300, so the first 300 microvolts of reading run from 25 °C up to the place where the curve applies again. The comment gives the reason: the amplifier cannot go below 0, so readings near 0 only say that the tip is no warmer than that.
+- A signal of 0 or less returns 250 (25.0 °C). Otherwise the result is interpolated within the segment that contains the signal; a signal above the 450 °C node uses the last segment, also beyond 500 °C.
+
+The comment explains the two settings. The zero differs from unit to unit by more than the curve can ignore: 100 microvolts is about 4 °C at soldering temperatures. The CJC calibration reads the amplifier with a cold tip, which gives the zero exactly if it is above 0; if it is below 0 the amplifier's output sits at its lower limit, the reading is 0 and the true zero stays unknown. The 100 °C calibration (`setCalibrate100()`) reads the amplifier with the tip in boiling water, and the zero is then that reading minus the signal expected at 100 °C. The comment reports one HS-02A that read 0 microvolts cold and about 1300 microvolts at 100 °C, a zero near −700 microvolts.
+
+Compared with upstream, the fork changed the following. Upstream compares `tipuV` with the points directly; the fork derives the zero from the two settings as described. The cold end is 25.0 °C; upstream uses 30.5 °C. The 100 °C node and the handling of a negative zero are new. The points from 223 °C up are the upstream values.
 
 #### `TemperatureType_t TipThermoModel::convertuVToDegCx10(uint32_t tipuVDelta)`
 
@@ -148,7 +173,7 @@ New (inline). Stores the accent colour for the next refresh of a mono screen. Ca
 
 #### `static void LCD::setMonoRegions(uint8_t accentFromRow, uint8_t accentToRow, uint8_t accentFromColumn, uint8_t mutedFromRow)`
 
-New (inline). Stores which parts of the next mono refresh are coloured. Lit pixels are white, except that rows `accentFromRow` to `accentToRow - 1` and columns from `accentFromColumn` take the accent colour, and rows from `mutedFromRow` are grey; grey takes precedence. Arguments are pixel rows and columns; 255 places a region off the screen. `guiHandleDraw()` resets the request to `(0, 0, 255, 255)` every frame, so a screen that wants colour calls this while it draws. Callers: `render_menu()`, `userConfirmation()`, `setCalibrateVIN()` and `hs02CjcMayRun()`.
+New (inline). Stores which parts of the next mono refresh are coloured. Lit pixels are white, except that rows `accentFromRow` to `accentToRow - 1` and columns from `accentFromColumn` take the accent colour, and rows from `mutedFromRow` are grey; grey takes precedence. Arguments are pixel rows and columns; 255 places a region off the screen. `guiHandleDraw()` resets the request to `(0, 0, 255, 255)` every frame, so a screen that wants colour calls this while it draws. Callers: `render_menu()`, `userConfirmation()`, `setCalibrateVIN()`, `cal100DrawRows()` and `hs02CjcMayRun()`.
 
 #### `static bool LCD::cardScrollBegin()`
 
@@ -172,6 +197,10 @@ Changed. With `LCD_160x80` and `HS02_THEME_CARD` it first calls `LCD::cardScroll
 
 Changed in the same way, with `LCD::cardScrollStep(false)`. Called by `guiRenderLoop()` for `TransitionAnimation::Up`.
 
+## `source/Core/Drivers/KXTJ3_defines.h`
+
+`KXJT3_ORIENTATION_THRESHOLD` is 2900 with `MODEL_HS02` and 2000, the upstream value, otherwise. `KXTJ3::getOrientation()` compares the accelerometer's x reading with it: a reading above the threshold is `ORIENTATION_RIGHT_HAND`, one below the negative threshold is `ORIENTATION_LEFT_HAND`, and anything between is `ORIENTATION_FLAT`. The comment gives the scale as about 4096 counts per g, which makes 2000 a tilt of about 29 degrees and 2900 about 45 degrees, and states that on the HS-02 the smaller value flipped the screen when the iron was only turned a little past level. The result is used by `startMOVTask()`.
+
 ## `source/Core/Inc/power.hpp`
 
 `wattHistoryFilter`, the weight of the `x10WattHistory` moving average, was the literal 24. It is now `WATT_HISTORY_WEIGHT`, which defaults to 24 here and is set to 96 for this board in `configuration.h`.
@@ -194,6 +223,14 @@ The fork changed the following:
 #### `static int32_t getPIDResultX10Watts(TemperatureType_t set_point, TemperatureType_t current_reading)`
 
 Changed. Returns the controller output in tenths of a watt. `set_point` is in °C and `current_reading` in tenths of a °C. In the `TIP_CONTROL_PID` branch the fork passes `set_point * TIP_PID_INPUT_SCALE` and `current_reading * TIP_PID_INPUT_SCALE / 10` to `PID::update()`; upstream passes `set_point` and `current_reading / 10`. Called by `startPIDTask()` each time the ADC has new samples. Keeps the static `lastCall` and the static controller instance `ctrl`.
+
+## `source/Core/Threads/MOVThread.cpp`
+
+#### `void startMOVTask(void const *argument __unused)`
+
+Changed. The movement task's entry function. Its loop reads the accelerometer once per `MOV_POLL_DELAY`, which is 50 ms on the HS-02. With `MODEL_HS02` the fork changed how the automatic display orientation (`OrientationMode` setting 2) is applied. Upstream calls `Display::setRotation()` on every reading that is not `ORIENTATION_FLAT`. Here the display is turned only after 10 readings in a row, half a second, that ask for an orientation other than the one applied last. A reading of `ORIENTATION_FLAT`, or one that agrees with the applied orientation, sets the count back to 0. The comment gives the reason: one reading past the threshold while the iron is being moved is not enough.
+
+State is kept in two statics: `flipVotes`, the count, and `applied`, the orientation applied last (−1 none yet, 0 right-handed, 1 left-handed). While `OrientationMode` is not 2, `applied` is set to −1 on every pass, so the orientation is applied afresh when automatic mode is selected again. The comment states why the applied orientation is remembered here and not read back from the display: `Display::getRotation()` is inverted on boards built with `DISPLAY_FLIP`.
 
 ## `source/Core/Inc/Settings.h` and `source/Core/Src/Settings.cpp`
 
@@ -240,7 +277,7 @@ All of the following apply only with `LCD_160x80` and `HS02_THEME_CARD`:
 
 - `powerMenu[]` gains an entry for `LowVoltageAllowed` (inside `#ifdef POW_DC`).
 - `UIMenu[]` gains entries for `BuzzerEnabled`, `ButtonLight`, `ColourReady`, `ColourHeating`, `ColourBoost`, `ColourSleep` and `ColourMenu`, and loses the entry for `ReverseButtonSettings`. The card menu has a fixed button layout and does not read that setting.
-- `advancedMenu[]` gains the entry `DebugPages`, whose handler is `setOpenDebugPages()`.
+- `advancedMenu[]` gains the entry `Calibrate100` between `CalibrateCJC` and `VoltageCalibration`, with the handler `setCalibrate100()` and the `draw` callback `displayCalibrate100()`, and the entry `DebugPages`, whose handler is `setOpenDebugPages()`. Neither entry is bound to a setting (`SettingsOptions::SettingsOptionsLength`), so the card menu runs the handler on OK.
 
 The global `bool hs02DebugPagesRequested` (initially false) carries the request from `setOpenDebugPages()` to `cardHandleButtons()` in `SettingsMenu.cpp`.
 
@@ -264,6 +301,19 @@ Changed. The handler of the `CalibrateCJC` menu entry. If the `CalibrateCJC` set
 
 New (card theme). The handler of the "Debug pages" menu entry. It sets `hs02DebugPagesRequested`; a menu handler cannot change screen itself, so `cardHandleButtons()` picks the request up straight after calling it.
 
+#### `static void cal100DrawRows(const char *const *rows, uint8_t count, bool question)`
+
+New (card theme). Clears the screen and prints `count` rows of text from `rows` in the small font, 16 pixels apart from the top. With `question` true it adds the row no / no / yes at pixel row 64, in button order (DOWN, UP, OK). It sets the mono regions so that the rows from 64 are grey and the rest is white. It does not refresh the display. Called by `setCalibrate100()` for each of its screens.
+
+#### `static void setCalibrate100(void)`
+
+New (card theme). The handler of the "Calibrate at 100C" menu entry. It measures the tip amplifier's reading while the tip is held in boiling water and stores it in the `Cal100uV` setting, which `fallbackTipTempCx10()` uses as the 100 °C point of its curve. The comment states that the heater is off everywhere in the menu, and that 100 °C is assumed although water boils about 1 °C lower for every 300 m above sea level. Called by `cardHandleButtons()` on OK short. It blocks until it returns, in these steps:
+
+- It shows the question "Tip held in / boiling water / 30 seconds?" and redraws it every 40 ms. OK short carries on; any other button returns without a measurement.
+- It shows "Measuring" and takes 16 samples with `getTipRawTemp(1)`, 100 ms apart; the comment says the CJC calibration takes them the same way. Their mean is converted to microvolts before the offset is removed, with `TipThermoModel::convertTipRawADCTouV(mean, true)`.
+- The reading is accepted if it lies at least `kCal100MinAboveZerouV` (250 microvolts) and at most `kCal100MaxAboveZerouV` (4000 microvolts) above the `CalibrationOffset` setting. An accepted reading is written to `Cal100uV` and `saveSettings()` is called. A reading outside these limits changes nothing.
+- It shows the result until a button is pressed: "100C saved at" or "Not near 100C / Nothing saved", with the reading in microvolts on the row below.
+
 #### `static void displayCardColour(SettingsOptions option)`
 
 New (card theme). Prints the name of the colour selected by one of the accent colour settings, from `LargeCardColour0` ("Auto") to `LargeCardColour8`, in the large font. A stored value outside the table is shown as "Auto". Called by the five wrappers below.
@@ -281,6 +331,7 @@ Each is the `draw` callback of its menu entry and is called by `render_menu()` o
 | `static void displayBuzzerEnabled(void)` | A checkbox for `BuzzerEnabled`. |
 | `static void displayButtonLight(void)` | A checkbox for `ButtonLight`. |
 | `static void displayLowVoltageAllowed(void)` | A checkbox for `LowVoltageAllowed`. |
+| `static void displayCalibrate100(void)` | A checkbox that is ticked when `Cal100uV` is not 0, that is, once a 100 °C point is stored. |
 | `static void displayColourReady(void)` | `displayCardColour(SettingsOptions::ColourReady)`. |
 | `static void displayColourHeating(void)` | `displayCardColour(SettingsOptions::ColourHeating)`. |
 | `static void displayColourBoost(void)` | `displayCardColour(SettingsOptions::ColourBoost)`. |
@@ -375,9 +426,9 @@ The additions are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The home screen
 
 The file-level static `hs02SetTempSaveAt` holds the tick at which a changed set temperature is due to be written to flash, or 0 if nothing is pending.
 
-#### `void hs02StepSetTemperature(bool up)`
+#### `void hs02StepSetTemperature(bool up, bool large)`
 
-New. Changes the `SolderingTemp` setting by one step up or down. The step is the `TempChangeShortStep` setting, but at least 5. The result is rounded to a multiple of the step and limited to `MIN_TEMP_C` to `MAX_TEMP_C`, or the °F limits when `TemperatureInF` is set. The value is in the selected unit. It does not write to flash; it sets `hs02SetTempSaveAt` to two seconds from now. Called by `handleHomeButtons()` and by `handleSolderingButtons()` (`Soldering.cpp`) on a short UP or DOWN press.
+New. Changes the `SolderingTemp` setting by one step up (`up` true) or down. With `large` false the step is the `TempChangeShortStep` setting, but at least 5; with `large` true it is the `TempChangeLongStep` setting, but at least 10. The result is the next multiple of the step in that direction, limited to `MIN_TEMP_C` to `MAX_TEMP_C`, or the °F limits when `TemperatureInF` is set. The value and the step are in the selected unit. It does not write to flash; it sets `hs02SetTempSaveAt` to two seconds from now. Called with `large` false by `handleHomeButtons()` and by `handleSolderingButtons()` (`Soldering.cpp`) on a short UP or DOWN press, and with `large` true by `handleSolderingButtons()` for each step of a held UP or DOWN.
 
 #### `void hs02SaveSetTemperatureIfDue(bool now)`
 
@@ -389,13 +440,13 @@ Changed. Handles the home screen buttons and returns the next operating mode. Ca
 
 - `BUTTON_BOTH_LONG`: on the first frame it starts tune 0; once the buttons have been held for five seconds it starts tune 1. The static `bothHeldSince` records when the hold began.
 - Any button while a tune plays stops the tune and does nothing else.
-- UP short or DOWN short calls `hs02StepSetTemperature()`. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
+- UP short or DOWN short calls `hs02StepSetTemperature()` with `large` false. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
 - UP held saves a pending set temperature, sets `hs02MenuWaitForRelease` and returns `SettingsMenu`.
 - Any other press saves a pending set temperature and falls through to the upstream handling, where DOWN held opens the temperature adjust screen and OK short starts soldering.
 
 ## `source/Core/Threads/UI/logic/Soldering.cpp`
 
-The change is guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The file declares `hs02StepSetTemperature()` and `hs02SaveSetTemperatureIfDue()`, which are defined in `HomeScreen.cpp`.
+The changes are guarded by `MODEL_HS02` and `HS02_THEME_CARD`. The file declares `hs02StepSetTemperature()` and `hs02SaveSetTemperatureIfDue()`, which are defined in `HomeScreen.cpp`.
 
 #### `OperatingMode handleSolderingButtons(const ButtonState buttons, guiContext *cxt)`
 
@@ -404,15 +455,21 @@ Changed. Handles the buttons of the soldering screen and returns the next operat
 While the buttons are unlocked, the card theme runs its own `switch` in place of the upstream one; the comment says it is laid out to match the home screen. It first calls `hs02SaveSetTemperatureIfDue(false)`. Then:
 
 - No button: sets `state1` to 0, and ends boost unless boost is on and `getButtonOK()` reports that the OK button is still down. The comment explains that `BUTTON_OK_LONG` is reported once per hold (`Buttons.cpp`) and is followed by `BUTTON_NONE`.
-- UP short or DOWN short: calls `hs02StepSetTemperature()`, so the target changes by one step at once. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
-- UP held or DOWN held: saves a pending set temperature and returns `TemperatureAdjust`.
+- UP short or DOWN short: calls `hs02StepSetTemperature()` with `large` false, so the target changes by one small step at once. UP is "+" unless `ReverseButtonTempChangeEnabled` is on.
+- UP held or DOWN held: calls `hs02StepSetTemperature()` with `large` true, so the target changes by one large step, and repeats this for as long as the button is held. The number changes on the soldering screen; the function stays in the `Soldering` mode. The repeats have the pacing of the card menu (see `cardHandleButtons()`): the interval between steps is `PRESS_ACCEL_INTERVAL_MAX` less an acceleration that grows by `PRESS_ACCEL_STEP` with each step, and it does not go below `PRESS_ACCEL_INTERVAL_MIN`. The statics `repeatTimer` and `repeatAcceleration` hold the tick of the last step and the acceleration; both are set to 0 on every frame whose button state is neither UP held nor DOWN held. The direction follows `ReverseButtonTempChangeEnabled` as for a short press.
 - OK short or `BUTTON_BOTH`: saves a pending set temperature and returns `HomeScreen`, which stops heating.
 - OK held: starts boost if the `BoostTemp` setting is not 0. Boost stays on for as long as the OK button is down.
 - UP and DOWN held together: locks the buttons if the `LockingMode` setting is not 0, as upstream.
 
-Both mode changes are made without a transition animation. In upstream, OK held, `BUTTON_BOTH` or UP held returns to the home screen, DOWN held starts boost, and any short press opens the temperature adjust screen.
+The change to the home screen is made without a transition animation. In upstream, OK held, `BUTTON_BOTH` or UP held returns to the home screen, DOWN held starts boost, and any short press opens the temperature adjust screen.
 
 While the buttons are locked, the press that starts boost (when `BoostTemp` is not 0 and `LockingMode` is `lockingMode_t::BOOST`) is OK held; upstream uses DOWN held. With no button, boost is kept on while the OK button is still down, as in the unlocked case; upstream ends it. The rest of the locked branch is unchanged.
+
+#### `OperatingMode gui_solderingMode(const ButtonState buttons, guiContext *cxt)`
+
+Changed. The per-frame function of the soldering screen, called by `guiHandleDraw()` in the `Soldering` mode. The card theme changes when the buzzer beeps. The tip counts as having reached the target while its reading is within 10 °C of `currentTempTargetDegC`. Upstream beeps for a third of a second each time the reading comes into this window, and arms the beep again whenever the reading leaves it. The card theme beeps in two cases only: the first time the reading is in the window after the soldering screen is entered, and later when the reading is in the window and the target is 20 °C or more above the target it last beeped for. The comment names boost and a set temperature turned well up as such higher targets, and states that the reading drifting out of the window and back, as it does under load, does not beep again.
+
+`scratch_state.state5` is non-zero once it has beeped and `state6` holds the target in °C that it beeped for. `guiRenderLoop()` clears the scratch state on every change of operating mode, so both start at 0 each time the screen is entered. `state3` holds the tick at which the beep ends, as upstream. The status LED is set as upstream: `LED_HOT` inside the window and `LED_HEATING` outside it.
 
 ## `source/Core/Threads/UI/logic/utils/Hs02Tune.cpp`
 
@@ -583,7 +640,7 @@ Changed. Draws one debug page. Items 18 and 17 are passed to the two functions a
 
 ### `source/Core/Inc/Translation.h`
 
-`enum class SettingsItemIndex` gains nine entries before `NUM_ITEMS`: `BuzzerEnabled`, `ColourReady`, `ColourHeating`, `ColourBoost`, `ColourSleep`, `ColourMenu`, `LowVoltageAllowed`, `ButtonLight` and `DebugPages`. The header also declares the new string constants listed under "Generated data".
+`enum class SettingsItemIndex` gains ten entries before `NUM_ITEMS`: `BuzzerEnabled`, `ColourReady`, `ColourHeating`, `ColourBoost`, `ColourSleep`, `ColourMenu`, `LowVoltageAllowed`, `ButtonLight`, `Calibrate100` and `DebugPages`. The header also declares the new string constants listed under "Generated data".
 
 ### `Translations/make_translation.py`
 
@@ -597,7 +654,7 @@ Changed. Writes each constant as a `const char*` definition followed by a `//` c
 
 ### `Translations/translation_EN.json` and `Translations/translations_definitions.json`
 
-Both files gain one menu option for each of the nine new `SettingsItemIndex` entries. The definitions give each a `maxLen` of 7 and a `maxLen2` of 15; the English file gives the two-line menu name and the description. Only the English translation file was changed.
+Both files gain one menu option for each of the ten new `SettingsItemIndex` entries. The definitions give each a `maxLen` of 7 and a `maxLen2` of 15; the English file gives the two-line menu name and the description. Only the English translation file was changed.
 
 ### `Translations/wash_font.py`
 
@@ -657,11 +714,12 @@ The format is the one `Display::drawBitmapColor()` takes: one byte per column pe
 | Group | Symbols | Used for |
 | --- | --- | --- |
 | Current sense debug page | `SmallSymbolCurrentSense`, `SmallSymbolCurrentOff`, `SmallSymbolCurrentOn`, `SmallSymbolCurrentPeak`, `SmallSymbolCurrentPwm` | Row labels of debug item 17. |
-| Live sensor debug page | `SmallSymbolLiveRaw`, `SmallSymbolLiveMicrovolts`, `SmallSymbolLiveOffset`, `SmallSymbolLiveMcu`, `SmallSymbolLivePower` | Row labels of debug item 18. |
+| Live sensor debug page | `SmallSymbolLiveRaw`, `SmallSymbolLiveMicrovolts`, `SmallSymbolLiveOffset`, `SmallSymbolLiveMcu`, `SmallSymbolLivePower` | Row labels of debug item 18. `setCalibrate100()` also prints `SmallSymbolLiveMicrovolts` ("uV") after its reading. |
 | Build number | `SmallSymbolCustomBuild` | "Build" and the value of `CUSTOM_BUILD`, on debug item 0. |
-| Hint row | `SmallSymbolHintOpen`, `SmallSymbolHintEdit`, `SmallSymbolHintDone`, `SmallSymbolHintRun`, `SmallSymbolHintPrev`, `SmallSymbolHintNext`, `SmallSymbolHintMore`, `SmallSymbolHintLess`, `SmallSymbolHintYes`, `SmallSymbolHintNo` | Button labels of the card menu and of the confirmation screens: "open", "edit", "save", "set", "prev", "next", "+", "-", "yes", "no". |
+| Hint row | `SmallSymbolHintOpen`, `SmallSymbolHintEdit`, `SmallSymbolHintDone`, `SmallSymbolHintRun`, `SmallSymbolHintPrev`, `SmallSymbolHintNext`, `SmallSymbolHintMore`, `SmallSymbolHintLess`, `SmallSymbolHintYes`, `SmallSymbolHintNo` | Button labels of the card menu, of the confirmation screens and of the question in `setCalibrate100()`: "open", "edit", "save", "set", "prev", "next", "+", "-", "yes", "no". |
 | Confirmation texts | `SmallCardConfirmCalibrate1` to `4`, `SmallCardConfirmReset1` to `3` | The short prompts of `userConfirmation()` in the card theme. |
 | CJC question | `SmallHs02CjcWarm1` to `3` | The question shown by `hs02CjcMayRun()`. |
+| 100 °C calibration | `SmallCal100Ask1` to `3`, `SmallCal100Busy`, `SmallCal100Saved`, `SmallCal100Bad1` and `2` | The question, the "Measuring" text and the two result texts shown by `setCalibrate100()`. |
 | Off | `LargeCardWordOff` | The word that replaces the "unavailable" icon in the card menu. |
 | Colour names | `LargeCardColour0` to `LargeCardColour8` | "Auto" and the eight colour names shown by `displayCardColour()`. |
 | Whole-word setting values | `LargeCardWordSettingRightChar`, `...LeftChar`, `...AutoChar`, `...SlowChar`, `...MediumChar`, `...FastChar`, `...StartSolderingChar`, `...StartSleepChar`, `...StartSleepOffChar`, `...LockBoostChar`, `...LockFullChar` | The words `SETTING_VALUE_TEXT()` selects in place of the translated one-letter values. Each name is `LargeCardWord` followed by the name of the `TranslationIndexTable` field it replaces. |
