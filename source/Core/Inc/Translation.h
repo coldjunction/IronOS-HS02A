@@ -188,6 +188,7 @@ enum class SettingsItemIndex : uint8_t {
   Calibrate100,
   DebugPages,
   BlockGame,
+  MazeGame,
   NUM_ITEMS,
 };
 

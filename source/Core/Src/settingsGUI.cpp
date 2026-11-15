@@ -130,6 +130,7 @@ static void displayButtonLight(void);
 static void displayLowVoltageAllowed(void);
 static void setOpenDebugPages(void);
 static void setOpenBlocks(void);
+static void setOpenMaze(void);
 static void setCalibrate100(void);
 static void displayCalibrate100(void);
 static void displayColourReady(void);
@@ -511,6 +512,8 @@ const menuitem advancedMenu[] = {
   {SETTINGS_DESC(SettingsItemIndex::DebugPages), setOpenDebugPages, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::DebugPages, 7},
   /* HS-02 card theme: a falling-block game on the upright screen */
   {SETTINGS_DESC(SettingsItemIndex::BlockGame), setOpenBlocks, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::BlockGame, 7},
+  /* HS-02 card theme: a first-person game */
+  {SETTINGS_DESC(SettingsItemIndex::MazeGame), setOpenMaze, noOpDisplay, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::MazeGame, 7},
 #endif
   /* vvvv end of menu marker. DO NOT REMOVE vvvv */
   {0, nullptr, nullptr, nullptr, SettingsOptions::SettingsOptionsLength, SettingsItemIndex::NUM_ITEMS, 0}
@@ -993,6 +996,9 @@ static void setOpenDebugPages(void) { hs02DebugPagesRequested = true; }
 // "Block game" works the same way (the game is a mode of its own, Hs02Blocks.cpp)
 bool        hs02BlocksRequested = false;
 static void setOpenBlocks(void) { hs02BlocksRequested = true; }
+// and so does the first-person game (Hs02Maze.cpp)
+bool        hs02MazeRequested = false;
+static void setOpenMaze(void) { hs02MazeRequested = true; }
 
 // ---- "Calibrate at 100C" --------------------------------------------------------------------
 // The curve in Fnirsi/ThermoModel.cpp has no measured point between the cold end (25 C) and

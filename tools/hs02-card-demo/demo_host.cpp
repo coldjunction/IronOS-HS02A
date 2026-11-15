@@ -189,7 +189,12 @@ uint32_t          availableW10(uint8_t) { return (uint32_t)inputs.voltsX10 * inp
 void              setStatusLED(const enum StatusLED led) { state.led = (uint8_t)led; }
 void              setBuzzer(bool on) { state.buzzerHz = (on && getSettingValue(SettingsOptions::BuzzerEnabled)) ? 2000 : 0; }
 void              setBuzzerTone(uint16_t hz) { state.buzzerHz = getSettingValue(SettingsOptions::BuzzerEnabled) ? hz : 0; }
-void              hs02ApplyButtonLight(void) { state.buttonLight = getSettingValue(SettingsOptions::ButtonLight) ? 1 : 0; }
+static uint8_t    buttonLightOverride = 0xFF;
+void              hs02ApplyButtonLight(void) { state.buttonLight = (buttonLightOverride != 0xFF ? buttonLightOverride : getSettingValue(SettingsOptions::ButtonLight)) ? 1 : 0; }
+void              hs02OverrideButtonLight(uint8_t level) {
+  buttonLightOverride = level;
+  hs02ApplyButtonLight();
+}
 void              resetWatchdog() {}
 void              reboot() { host_reboot(); }
 void              delay_ms(uint16_t ms) { advance(ms); }

@@ -647,6 +647,12 @@
       "maxLen": 7,
       "maxLen2": 15,
       "description": "Super High Intensity Block Simulator: a falling-block game. Hold the iron upright, tip down"
+    },
+    {
+      "id": "MazeGame",
+      "maxLen": 7,
+      "maxLen2": 15,
+      "description": "Meltdown: a first-person game. Down and Up turn, tap OK to fire, hold OK to walk, hold Down and Up to leave"
     }
   ],
   "gaugeLabels": [

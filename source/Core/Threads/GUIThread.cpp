@@ -94,8 +94,8 @@ OperatingMode guiHandleDraw(void) {
     } else {
       Display::setDisplayState(Display::DisplayState::ON);
     }
-    if (currentOperatingMode != OperatingMode::Soldering && currentOperatingMode != OperatingMode::SolderingProfile) {
-      // Not in soldering mode, so set this based on temp
+    if (currentOperatingMode != OperatingMode::Soldering && currentOperatingMode != OperatingMode::SolderingProfile && currentOperatingMode != OperatingMode::Hs02Maze) {
+      // Not in soldering mode, so set this based on temp (the first-person game drives the LED itself)
       if (tipTemp > 55) {
         setStatusLED(LED_COOLING_STILL_HOT);
       } else {
@@ -158,6 +158,9 @@ OperatingMode guiHandleDraw(void) {
   case OperatingMode::Hs02Blocks:
     newMode = hs02BlocksFrame(buttons, &context);
     break;
+  case OperatingMode::Hs02Maze:
+    newMode = hs02MazeFrame(buttons, &context);
+    break;
 #endif
   case OperatingMode::CJCCalibration:
     newMode = performCJCC(buttons, &context);
@@ -189,6 +192,7 @@ void hs02ApplyButtonLight(void);   // Core/BSP/Fnirsi/BSP.cpp
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
 void hs02TuneTick(void); // UI/logic/utils/Hs02Tune.cpp
 void hs02TuneStop(void);
+void hs02OverrideButtonLight(uint8_t level); // Core/BSP/Fnirsi/BSP.cpp
 #endif
 
 void guiRenderLoop(void) {
@@ -200,12 +204,16 @@ void guiRenderLoop(void) {
   if (currentOperatingMode != OperatingMode::HomeScreen && currentOperatingMode != OperatingMode::Hs02Blocks) {
     hs02TuneStop(); // a tune only plays on the home screen and in the block game
   }
+  if (currentOperatingMode != OperatingMode::Hs02Maze) {
+    hs02OverrideButtonLight(0xFF); // only that game flashes the button light
+  }
   hs02TuneTick();
 #endif
 #if defined(MODEL_HS02) && defined(HS02_THEME_CARD)
-  // (true for the block game as well: it paints on the panel itself, and the frame buffer,
-  // which it leaves empty, must not be sent over it)
-  const bool nativeStartupLogo = currentOperatingMode == OperatingMode::StartupLogo || currentOperatingMode == OperatingMode::Hs02Blocks;
+  // (true for the two games as well: they paint on the panel themselves, and the frame buffer,
+  // which they leave empty, must not be sent over it)
+  const bool nativeStartupLogo = currentOperatingMode == OperatingMode::StartupLogo || currentOperatingMode == OperatingMode::Hs02Blocks
+                              || currentOperatingMode == OperatingMode::Hs02Maze;
 #else
   const bool    nativeStartupLogo = currentOperatingMode == OperatingMode::StartupLogo;
 #endif

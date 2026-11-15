@@ -59,6 +59,7 @@ static void printShortDescription(SettingsItemIndex settingsItemIndex, uint16_t 
 // the stock layout is not shown.
 extern bool       hs02DebugPagesRequested; // settingsGUI.cpp
 extern bool       hs02BlocksRequested;     // settingsGUI.cpp
+extern bool       hs02MazeRequested;       // settingsGUI.cpp
 // Set by the home screen when the menu is opened by HOLDING a button: the menu then ignores the
 // buttons until they have been let go, or the held button would start stepping through entries.
 bool              hs02MenuWaitForRelease = false;
@@ -217,6 +218,11 @@ static OperatingMode cardHandleButtons(const ButtonState buttons, guiContext *cx
         hs02BlocksRequested = false;
         cxt->transitionMode = TransitionAnimation::None;
         return OperatingMode::Hs02Blocks;
+      }
+      if (hs02MazeRequested) { // the "Meltdown" entry
+        hs02MazeRequested   = false;
+        cxt->transitionMode = TransitionAnimation::None;
+        return OperatingMode::Hs02Maze;
       }
     } else if (*subEntry == 0) {
       *subEntry           = 1;

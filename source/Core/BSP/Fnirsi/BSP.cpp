@@ -197,10 +197,19 @@ bool          isTipDisconnected() {
 // (100 Hz), lit for as many ticks as the "Button light" setting says (0 = off, 10 = fully on).
 static volatile uint8_t buttonLightLevel = 0; // 0..10; 0 until the GUI has read the setting
 
+static uint8_t buttonLightOverride = 0xFF; // 0..10 while something flashes the light, else 0xFF
+
 // Called once per GUI frame.
 void hs02ApplyButtonLight(void) {
-  const uint16_t level = getSettingValue(SettingsOptions::ButtonLight);
+  const uint16_t level = buttonLightOverride != 0xFF ? buttonLightOverride : getSettingValue(SettingsOptions::ButtonLight);
   buttonLightLevel     = level > 10 ? 10 : (uint8_t)level;
+}
+
+// A brightness (0..10) that replaces the "Button light" setting, at once, until this is called
+// with 0xFF. The first-person game flashes the light with it.
+void hs02OverrideButtonLight(uint8_t level) {
+  buttonLightOverride = level;
+  hs02ApplyButtonLight();
 }
 
 extern "C" void vApplicationTickHook(void) { // from the tick interrupt, every millisecond

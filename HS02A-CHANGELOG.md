@@ -3,6 +3,10 @@
 Based on the HS-02 port of IronOS (bugparty/IronOS, branch `dev`, commit 93da587). IronOS is
 GPLv3; this is a modified version and is published under the same licence.
 
+## Build 52
+
+- Small internal changes.
+
 ## Build 51
 
 - **Two-stage temperature control.** Heating up uses the gentle setting as before (2 W per

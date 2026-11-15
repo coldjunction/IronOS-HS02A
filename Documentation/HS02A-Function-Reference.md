@@ -115,7 +115,11 @@ New. Returns the statistics collected by `hs02CurrentSenseSample()`. `offMean`, 
 
 #### `void hs02ApplyButtonLight(void)`
 
-New. Copies the `ButtonLight` setting (0 to 10, larger values count as 10) into the file-level static `buttonLightLevel`. Called once per GUI frame from `guiRenderLoop()`. The pin itself is driven by `vApplicationTickHook()`.
+New. Copies the `ButtonLight` setting (0 to 10, larger values count as 10) into the file-level static `buttonLightLevel`, or the override level if `hs02OverrideButtonLight()` has set one. Called once per GUI frame from `guiRenderLoop()`. The pin itself is driven by `vApplicationTickHook()`.
+
+#### `void hs02OverrideButtonLight(uint8_t level)`
+
+New. Sets a brightness (0 to 10) that replaces the `ButtonLight` setting until it is called again with `0xFF`, and applies it at once, so the light can be flashed without changing the setting. `guiRenderLoop()` calls it with `0xFF` on every frame of the ordinary screens, so an override cannot be left behind.
 
 #### `extern "C" void vApplicationTickHook(void)`
 
